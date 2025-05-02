@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t('app_name', lang) }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/icon.ico') }}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='img/icon.ico') }}" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* League Spartan Font tanımlaması */
+        @font-face {
+            font-family: 'League Spartan';
+            src: url('{{ url_for("static", filename="fonts/leaguespartan-bold.woff2") }}') format('woff2'),
+                 url('{{ url_for("static", filename="fonts/leaguespartan-bold.woff") }}') format('woff'),
+                 url('{{ url_for("static", filename="fonts/leaguespartan-bold.ttf") }}') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+        }
+        
+        :root {
+            --uranian-blue: #a9cef4;
+            --outer-space: #36494e;
+            --black: #000000;
+            --air-superiority-blue: #7ea0b7;
+            --paynes-gray: #597081;
+        }
+        
+        body {
+            font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, sans-serif;
+            background-color: #f7f9fc;
+            color: var(--outer-space);
+            line-height: 1.6;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            min-height: calc(100vh - 120px);
+        }
+        
+        .header {
+            background-color: var(--paynes-gray);
+            color: white;
+            padding: 1.5rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+        
+        .header-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-weight: bold;
+            font-size: 1.8rem;
+        }
+        
+        .language-switcher {
+            display: flex;
+            align-items: center;
+            margin-left: 1.5rem;
+        }
+        
+        .language-switcher select {
+            background-color: var(--outer-space);
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        
+        .language-switcher select option {
+            background-color: var(--outer-space);
+            color: white;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            transition: opacity 0.2s;
+            padding: 0.5rem 0.8rem;
+            border-radius: 4px;
+        }
+        
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .search-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .search-card h2 {
+            margin-top: 0;
+            color: var(--outer-space);
+            font-weight: bold;
+            font-size: 1.5rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .search-description {
+            font-size: 1.1rem;
+            color: var(--paynes-gray);
+            margin-bottom: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: var(--outer-space);
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, sans-serif;
+            transition: border-color 0.3s;
+        }
+        
+        .form-control:focus {
+            border-color: var(--air-superiority-blue);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(126, 160, 183, 0.1);
+        }
+        
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23444' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1rem;
+            padding-right: 2.5rem;
+        }
+        
+        .btn {
+            display: inline-block;
+            background-color: var(--air-superiority-blue);
+            color: white;
+            text-decoration: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 1rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            max-width: 250px; /* Buton genişliğini sınırla */
+            margin: 0 auto;
+            display: block;
+        }
+        
+        .btn:hover {
+            background-color: var(--paynes-gray);
+            transform: translateY(-2px);
+        }
+        
+        /* Copyright */
+        .copyright {
+            position: absolute;
+            bottom: 1rem;
+            right: 2rem;
+            font-size: 0.8rem;
+            color: var(--paynes-gray);
+            text-align: right;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
+            }
+            
+            .nav-links {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1>{{ t('app_name', lang) }}</h1>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">{{ t('new_search', lang) }}</a>
+                <a href="{{ url_for('history') }}">{{ t('history', lang) }}</a>
+                
+                <div class="language-switcher">
+                    <select id="language-select" onchange="changeLanguage(this.value)">
+                        {% for code, name in languages.items() %}
+                            <option value="{{ code }}" {% if code == lang %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="search-card">
+            <h2>{{ t('new_search', lang) }}</h2>
+            <p class="search-description">{{ t('index_description', lang) }}</p>
+            
+            <form action="{{ url_for('fetch') }}" method="post" class="input-form">
+                <div class="form-group">
+                    <label for="chat_id">{{ t('chat_input_label', lang) }}</label>
+                    <input type="text" id="chat_id" name="chat_id" 
+                           placeholder="{{ t('chat_input_placeholder', lang) }}" 
+                           class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="period">{{ t('period_label', lang) }}</label>
+                    <select id="period" name="period" class="form-control">
+                        <option value="7">{{ t('period_7', lang) }}</option>
+                        <option value="30">{{ t('period_30', lang) }}</option>
+                        <option value="90">{{ t('period_90', lang) }}</option>
+                        <option value="180">{{ t('period_180', lang) }}</option>
+                        <option value="all" selected>{{ t('period_all', lang) }}</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn">{{ t('fetch_button', lang) }}</button>
+            </form>
+        </div>
+        
+        <div class="copyright">
+            &copy; {{ now().year }} xochiquettzal
+        </div>
+    </div>
+
+    <script>
+        function changeLanguage(lang) {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('lang', lang);
+            window.location.href = currentUrl.toString();
+        }
+    </script>
+</body>
+</html>

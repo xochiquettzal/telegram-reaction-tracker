@@ -1,0 +1,237 @@
+/* General Styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f2f5; /* Light gray background */
+    color: #1c1e21; /* Dark text */
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 700px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: #ffffff; /* White content background */
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+h1 {
+    color: #0088cc; /* Telegram-like blue */
+    margin-bottom: 20px;
+}
+
+p {
+    color: #606770; /* Medium gray text */
+    margin-bottom: 15px;
+}
+
+/* Form Styles */
+.input-form {
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 400px; /* Limit form width */
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-group input[type="text"],
+.form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccd0d5;
+    border-radius: 6px;
+    box-sizing: border-box; /* Include padding and border in element's total width and height */
+    font-size: 1rem;
+}
+
+.form-group input[type="text"]:focus,
+.form-group select:focus {
+    border-color: #0088cc;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 136, 204, 0.2);
+}
+
+/* Button Styles */
+.btn {
+    display: inline-block;
+    padding: 12px 25px;
+    background-color: #0088cc; /* Primary blue */
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-top: 10px;
+}
+
+.btn:hover {
+    background-color: #0077b3; /* Darker blue on hover */
+}
+
+.btn-secondary {
+    background-color: #e4e6eb; /* Light gray button */
+    color: #1c1e21; /* Dark text */
+}
+
+.btn-secondary:hover {
+    background-color: #d8dadf; /* Slightly darker gray */
+}
+
+/* Loading Page Styles */
+.loading-container {
+    text-align: center;
+}
+
+.loader {
+    border: 5px solid #f3f3f3; /* Light grey */
+    border-top: 5px solid #0088cc; /* Blue */
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin: 30px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#progress-text {
+    font-weight: 500;
+    margin-top: 15px;
+}
+
+#scanned-count {
+    font-weight: bold;
+    color: #0088cc;
+}
+
+.error-text {
+    color: #d93025; /* Red for errors */
+    font-weight: bold;
+    margin-top: 15px;
+}
+
+#cancel-button {
+    margin-top: 25px;
+}
+
+
+/* Results Page Styles */
+.results-container {
+    text-align: left;
+}
+
+.results-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+}
+
+.result-item {
+    background-color: #f7f8fa; /* Very light background for items */
+    border: 1px solid #e4e6eb;
+    border-radius: 6px;
+    padding: 15px 20px;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column; /* Stack elements vertically */
+    gap: 8px; /* Space between elements */
+}
+
+.reaction-count {
+    font-weight: bold;
+    color: #0088cc;
+    font-size: 0.9rem;
+    background-color: #e7f3ff; /* Light blue background for count */
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block; /* Fit content width */
+    align-self: flex-start; /* Align to the start */
+}
+
+.message-preview {
+    color: #333;
+    margin: 5px 0;
+    font-size: 0.95rem;
+    word-wrap: break-word; /* Wrap long words */
+}
+
+.message-link {
+    color: #0088cc;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+    align-self: flex-start; /* Align link to the start */
+}
+
+.message-link:hover {
+    text-decoration: underline;
+}
+
+/* Pagination Styles */
+.pagination {
+    margin-top: 30px;
+    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.page-btn {
+    padding: 8px 15px;
+    font-size: 0.9rem;
+}
+
+.page-btn.disabled {
+    background-color: #e4e6eb;
+    color: #bec3c9;
+    cursor: not-allowed;
+}
+
+.page-info {
+    font-weight: 500;
+    color: #606770;
+}
+
+.back-btn {
+    display: block; /* Make it a block element */
+    width: fit-content; /* Fit the content width */
+    margin: 30px auto 0; /* Center horizontally */
+}
+
+/* Error Box */
+.error-box {
+    border: 1px solid #d93025;
+    background-color: #fce8e6;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+}
+.error-box h2 {
+    color: #d93025;
+    margin-bottom: 10px;
+}
+.error-box p {
+    color: #c5221f;
+}

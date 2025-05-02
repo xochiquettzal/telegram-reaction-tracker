@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t('history_results_title', lang) }} - {{ history_entry['chat_title'] or history_entry['chat_identifier'] }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/icon.ico') }}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='img/icon.ico') }}" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* League Spartan Font tanımlaması */
+        @font-face {
+            font-family: 'League Spartan';
+            src: url('{{ url_for("static", filename="fonts/leaguespartan-bold.woff2") }}') format('woff2'),
+                 url('{{ url_for("static", filename="fonts/leaguespartan-bold.woff") }}') format('woff'),
+                 url('{{ url_for("static", filename="fonts/leaguespartan-bold.ttf") }}') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+        }
+        
+        :root {
+            --uranian-blue: #a9cef4;
+            --outer-space: #36494e;
+            --black: #000000;
+            --air-superiority-blue: #7ea0b7;
+            --paynes-gray: #597081;
+        }
+        
+        body {
+            font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, sans-serif;
+            background-color: #f7f9fc;
+            color: var(--outer-space);
+            line-height: 1.6;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            min-height: calc(100vh - 120px);
+        }
+        
+        .header {
+            background-color: var(--paynes-gray);
+            color: white;
+            padding: 1.5rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+        
+        .header-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-weight: bold;
+            font-size: 1.8rem;
+        }
+        
+        .language-switcher {
+            display: flex;
+            align-items: center;
+            margin-left: 1.5rem;
+        }
+        
+        .language-switcher select {
+            background-color: var(--outer-space);
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        
+        .language-switcher select option {
+            background-color: var(--outer-space);
+            color: white;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            transition: opacity 0.2s;
+            padding: 0.5rem 0.8rem;
+            border-radius: 4px;
+        }
+        
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card h2 {
+            margin-top: 0;
+            color: var(--outer-space);
+            font-weight: bold;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .message-card {
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .message-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 20px rgba(0,0,0,0.1);
+        }
+        
+        .message-header {
+            background-color: var(--uranian-blue);
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .reaction-count {
+            display: inline-flex;
+            align-items: center;
+            font-weight: bold;
+            color: var(--outer-space);
+            background: rgba(255, 255, 255, 0.6);
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+        }
+        
+        .reaction-count::before {
+            content: "❤️";
+            margin-right: 0.5rem;
+        }
+        
+        .message-content {
+            padding: 1.5rem;
+            flex-grow: 1;
+        }
+        
+        .message-preview {
+            color: var(--paynes-gray);
+            font-size: 1rem;
+            line-height: 1.5;
+            margin: 0;
+        }
+        
+        .message-footer {
+            padding: 1rem 1.5rem;
+            background-color: #f7f9fc;
+            border-top: 1px solid #eee;
+            text-align: right;
+        }
+        
+        .message-link {
+            display: inline-block;
+            background-color: var(--air-superiority-blue);
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1.2rem;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        
+        .message-link:hover {
+            background-color: var(--paynes-gray);
+            transform: translateY(-2px);
+        }
+        
+        .search-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .meta-item {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        }
+        
+        .meta-label {
+            color: var(--paynes-gray);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .meta-value {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--outer-space);
+        }
+        
+        .back-btn {
+            display: inline-block;
+            background-color: var(--paynes-gray);
+            color: white;
+            text-decoration: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+            margin-top: 1.5rem;
+        }
+        
+        .back-btn:hover {
+            background-color: var(--outer-space);
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: var(--paynes-gray);
+        }
+        
+        /* Copyright */
+        .copyright {
+            position: absolute;
+            bottom: 1rem;
+            right: 2rem;
+            font-size: 0.8rem;
+            color: var(--paynes-gray);
+            text-align: right;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
+            }
+            
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .meta-item {
+                padding: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1>{{ t('app_name', lang) }}</h1>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">{{ t('new_search', lang) }}</a>
+                <a href="{{ url_for('history') }}">{{ t('history', lang) }}</a>
+                
+                <div class="language-switcher">
+                    <select id="language-select" onchange="changeLanguage(this.value)">
+                        {% for code, name in languages.items() %}
+                            <option value="{{ code }}" {% if code == lang %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h2>{{ t('history_results_title', lang) }}</h2>
+            
+            <div class="search-meta">
+                <div class="meta-item">
+                    <div class="meta-label">{{ t('search_chat', lang) }}</div>
+                    <div class="meta-value">{{ history_entry['chat_title'] or history_entry['chat_identifier'] }}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">{{ t('search_date', lang) }}</div>
+                    <div class="meta-value">{{ history_entry['timestamp'] }}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">{{ t('search_period', lang) }}</div>
+                    <div class="meta-value">{{ history_entry['period_days'] if history_entry['period_days'] is not none else t('period_all', lang) }}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">{{ t('messages_found_count', lang) }}</div>
+                    <div class="meta-value">{{ history_entry['messages_found'] }}</div>
+                </div>
+            </div>
+            
+            {% if results %}
+                <div class="card-grid">
+                    {% for message in results %}
+                        <div class="message-card">
+                            <div class="message-header">
+                                <span class="reaction-count">{{ message['reaction_count'] }}</span>
+                            </div>
+                            <div class="message-content">
+                                <p class="message-preview">{{ message['message_preview'] }}</p>
+                            </div>
+                            <div class="message-footer">
+                                <a href="{{ message['message_link'] }}" target="_blank" class="message-link">{{ t('view_message', lang) }}</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-results">
+                    <p>{{ t('no_results', lang) }}</p>
+                </div>
+            {% endif %}
+            
+            <a href="{{ url_for('history') }}" class="back-btn">{{ t('back_to_history', lang) }}</a>
+        </div>
+        
+        <div class="copyright">
+            &copy; {{ now().year }} xochiquettzal
+        </div>
+    </div>
+    
+    <script>
+        function changeLanguage(lang) {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('lang', lang);
+            window.location.href = currentUrl.toString();
+        }
+    </script>
+</body>
+</html>
