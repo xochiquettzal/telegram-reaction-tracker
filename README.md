@@ -3,14 +3,16 @@
 > A powerful analytics tool that helps you discover the most popular and engaging messages in any Telegram chat or channel by tracking reaction counts.
 
 Telegram Reaction Tracker is a web application that finds and lists the most reacted messages in a Telegram chat.
-![image](https://github.com/user-attachments/assets/4fd50e96-232d-4d95-ad2e-2b17a2e5e069)
 
+[Screenshot: Main page with search options]
 
 ## Features
 
 - Find messages with the most reactions in Telegram groups/channels
 - Search within specific time periods (7 days, 30 days, 90 days, 180 days, all time)
 - Save and view search history
+- **Improved handling of animated GIFs during media download.**
+- **Bulk delete history entries from the history page.**
 - English and Turkish language support
 - Results sorted by reaction count
 - Message links (t.me)
@@ -74,4 +76,12 @@ telegramTracker/
 1. Specify a Telegram chat or channel on the main page (by username or ID)
 2. Select the time period you want to scan
 3. Click the "Get Reactions" button
-4. Results will be listed in descending order by reaction count 
+4. Results will be listed in descending order by reaction count
+
+## History Page Usage
+
+The history page allows you to view your past search queries and their results.
+
+[Screenshot: History page with bulk delete options]
+
+You can also delete individual history entries or use the checkboxes and "Delete Selected" button to remove multiple entries at once.

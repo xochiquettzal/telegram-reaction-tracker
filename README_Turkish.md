@@ -1,12 +1,18 @@
 # Telegram Tepki İzleyici
 
+> Tepki sayılarını takip ederek herhangi bir Telegram sohbetindeki veya kanalındaki en popüler ve ilgi çekici mesajları keşfetmenize yardımcı olan güçlü bir analiz aracı.
+
 Telegram Tepki İzleyici, bir Telegram sohbetindeki en çok tepki alan mesajları bulup listeleyen bir web uygulamasıdır.
+
+[Ekran Görüntüsü: Arama seçenekleriyle ana sayfa]
 
 ## Özellikler
 
 - Telegram gruplarında/kanallarında en çok tepki alan mesajları bulma
 - Belirli zaman aralıklarında arama yapma (7 gün, 30 gün, 90 gün, 180 gün, tüm zamanlar)
 - Arama geçmişini kaydetme ve görüntüleme
+- **Medya indirme sırasında hareketli GIF'lerin daha iyi işlenmesi.**
+- **Geçmiş sayfasından toplu geçmiş kaydı silme.**
 - Türkçe ve İngilizce dil desteği
 - Tepki sayısına göre sıralanmış sonuçlar
 - Mesaj bağlantıları (t.me)
@@ -70,4 +76,12 @@ telegramTracker/
 1. Ana sayfada bir Telegram sohbeti veya kanalı belirtin (kullanıcı adı veya ID ile)
 2. Tarama yapmak istediğiniz zaman aralığını seçin
 3. "Tepkileri Getir" butonuna tıklayın
-4. Sonuçlar, tepki sayısına göre azalan sırada listelenecektir 
+4. Sonuçlar, tepki sayısına göre azalan sırada listelenecektir
+
+## Geçmiş Sayfası Kullanımı
+
+Geçmiş sayfası, önceki arama sorgularınızı ve sonuçlarını görüntülemenizi sağlar.
+
+[Ekran Görüntüsü: Toplu silme seçenekleriyle geçmiş sayfası]
+
+Tek tek geçmiş kayıtlarını silebilir veya birden çok kaydı aynı anda kaldırmak için onay kutularını ve "Seçilenleri Sil" düğmesini kullanabilirsiniz.
