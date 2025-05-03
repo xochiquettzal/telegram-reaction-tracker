@@ -265,6 +265,10 @@ translations = {
     'downloading_description': {
         'tr': 'Tepki alan mesajlar için medya dosyalarını indiriyoruz. Bu işlem biraz zaman alabilir.',
         'en': 'We are downloading media files for messages with reactions. This might take a while.'
+    },
+    'delete_selected': {
+        'tr': 'Seçili Olanı Sil',
+        'en': 'Delete Selected'
     }
 }
 
