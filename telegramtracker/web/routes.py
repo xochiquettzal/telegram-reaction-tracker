@@ -329,3 +329,17 @@ def register_routes(app):
             flash('Failed to delete history entry.', 'error')
             
         return redirect(url_for('history'))
+
+    @app.route('/delete_selected_history', methods=['POST'])
+    def delete_selected_history():
+        """Deletes selected history entries."""
+        selected_ids = request.json.get('history_ids', [])
+        if not selected_ids:
+            return jsonify({'success': False, 'message': 'No history IDs provided.'}), 400
+
+        try:
+            deleted_count = database.delete_history_entries_by_ids(selected_ids)
+            return jsonify({'success': True, 'deleted_count': deleted_count}), 200
+        except Exception as e:
+            print(f"Error deleting selected history entries: {e}")
+            return jsonify({'success': False, 'message': 'An error occurred during deletion.'}), 500

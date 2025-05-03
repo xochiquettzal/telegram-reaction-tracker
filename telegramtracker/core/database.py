@@ -66,6 +66,40 @@ def save_search_history(original_identifier, entity, period_days, message_count,
         if conn:
             conn.close()
 
+def delete_history_entries_by_ids(history_ids):
+    """Delete multiple history entries and their related results by a list of IDs."""
+    if not history_ids:
+        return 0
+
+    try:
+        conn = sqlite3.connect(DATABASE)
+        cursor = conn.cursor()
+
+        # Convert IDs to a format suitable for SQL IN clause
+        # Ensure IDs are integers to prevent SQL injection
+        safe_ids = [int(id) for id in history_ids]
+        id_placeholders = ','.join('?' for _ in safe_ids)
+
+        # First delete related results
+        cursor.execute(f"DELETE FROM search_results WHERE history_id IN ({id_placeholders})", safe_ids)
+        results_deleted = cursor.rowcount
+
+        # Then delete the history entries
+        cursor.execute(f"DELETE FROM search_history WHERE id IN ({id_placeholders})", safe_ids)
+        history_deleted = cursor.rowcount
+
+        conn.commit()
+        print(f"Bulk history deletion: {history_deleted} history records and {results_deleted} results deleted.")
+        return history_deleted
+    except Exception as e:
+        print(f"Error deleting multiple history entries: {e}")
+        if conn:
+            conn.rollback()
+        return 0
+    finally:
+        if conn:
+            conn.close()
+
 def save_search_results(history_id, messages, build_link_func):
     """Save search results to database."""
     if not history_id:
@@ -165,4 +199,4 @@ def delete_history_entry(history_id):
         return False
     finally:
         if conn:
-            conn.close() 
+            conn.close()

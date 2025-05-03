@@ -121,6 +121,13 @@
             padding-bottom: 1rem;
             margin-bottom: 1.5rem;
         }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem; /* Add some space between header and table */
+        }
         
         table {
             width: 100%;
@@ -320,12 +327,18 @@
 
     <div class="container">
         <div class="history-card">
-            <h2>{{ t('history_title', lang) }}</h2>
+            <div class="history-header">
+                <h2>{{ t('history_title', lang) }}</h2>
+                {% if history %}
+                    <button type="button" class="btn btn-delete" id="deleteSelectedBtn" disabled>Delete Selected</button>
+                {% endif %}
+            </div>
             
             {% if history %}
                 <table>
                     <thead>
                         <tr>
+                            <th><input type="checkbox" id="selectAllCheckbox"></th>
                             <th>{{ t('timestamp', lang) }}</th>
                             <th>{{ t('chat', lang) }}</th>
                             <th>{{ t('period', lang) }}</th>
@@ -337,6 +350,7 @@
                     <tbody>
                         {% for entry in history %}
                             <tr>
+                                <td><input type="checkbox" class="history-checkbox" value="{{ entry['id'] }}"></td>
                                 <td data-label="{{ t('timestamp', lang) }}">{{ entry['timestamp'] }}</td>
                                 <td data-label="{{ t('chat', lang) }}">{{ entry['chat_title'] or entry['chat_identifier'] }}</td>
                                 <td data-label="{{ t('period', lang) }}">{{ entry['period_days'] if entry['period_days'] is not none else t('period_all', lang) }}</td>
@@ -345,13 +359,13 @@
                                 <td data-label="{{ t('actions', lang) }}">
                                     <div class="action-buttons">
                                         <a href="{{ url_for('view_history_results', history_id=entry['id']) }}" class="btn">{{ t('view_results', lang) }}</a>
-                                        <button type="button" class="btn btn-delete" onclick="confirmDelete({{ entry['id'] }})">{{ t('delete', lang) }}</button>
                                     </div>
                                 </td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+
             {% else %}
                 <div class="no-history">
                     <p>{{ t('no_history', lang) }}</p>
@@ -407,6 +421,87 @@
                 closeModal();
             }
         };
+
+        // JavaScript for bulk delete
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            const historyCheckboxes = document.querySelectorAll('.history-checkbox');
+            const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+
+            // Function to update the state of the delete button
+            function updateDeleteButtonState() {
+                const checkedCheckboxes = document.querySelectorAll('.history-checkbox:checked');
+                deleteSelectedBtn.disabled = checkedCheckboxes.length === 0;
+            }
+
+            // Event listener for "Select All" checkbox
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function() {
+                    historyCheckboxes.forEach(checkbox => {
+                        checkbox.checked = selectAllCheckbox.checked;
+                    });
+                    updateDeleteButtonState();
+                });
+            }
+
+            // Event listeners for individual history checkboxes
+            historyCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    if (!this.checked) {
+                        if (selectAllCheckbox) {
+                            selectAllCheckbox.checked = false;
+                        }
+                    } else {
+                        // Optional: Check if all are selected to check "Select All"
+                        const allChecked = Array.from(historyCheckboxes).every(cb => cb.checked);
+                        if (selectAllCheckbox) {
+                            selectAllCheckbox.checked = allChecked;
+                        }
+                    }
+                    updateDeleteButtonState();
+                });
+            });
+
+            // Initial state of the delete button
+            updateDeleteButtonState();
+
+            // Add event listener for the deleteSelectedBtn to send the delete request
+            if (deleteSelectedBtn) {
+                deleteSelectedBtn.addEventListener('click', function() {
+                    const checkedCheckboxes = document.querySelectorAll('.history-checkbox:checked');
+                    const historyIdsToDelete = Array.from(checkedCheckboxes).map(checkbox => checkbox.value);
+
+                    if (historyIdsToDelete.length > 0) {
+                        // Optional: Add a confirmation dialog here if desired
+                        if (confirm('Are you sure you want to delete the selected history entries?')) {
+                            fetch('/delete_selected_history', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ history_ids: historyIdsToDelete }),
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    alert('Selected history entries deleted successfully.');
+                                    // Reload the page to show updated history
+                                    window.location.reload();
+                                } else {
+                                    alert('Error deleting selected history entries: ' + data.message);
+                                }
+                            })
+                            .catch((error) => {
+                                console.error('Error:', error);
+                                alert('An error occurred while trying to delete selected history entries.');
+                            });
+                        }
+                    } else {
+                        alert('Please select at least one history entry to delete.');
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>
