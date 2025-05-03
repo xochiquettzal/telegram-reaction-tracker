@@ -83,7 +83,6 @@ telegramTracker/
 
 The history page allows you to view your past search queries and their results.
 
-![image](https://github.com/user-attachments/assets/71761003-7fee-40f0-b1fa-a1824cbeeb57)
-
+![image](https://github.com/user-attachments/assets/741c7f30-775e-4458-b0ca-b940f28b39ed)
 
 You can also delete individual history entries or use the checkboxes and "Delete Selected" button to remove multiple entries at once.
