@@ -74,7 +74,33 @@ translations = {
         'tr': 'Tepkileri Getir',
         'en': 'Fetch Reactions'
     },
-    
+    'chat_id_required_error': {
+        'tr': 'Sohbet Kullanıcı Adı veya ID alanı zorunludur.',
+        'en': 'Chat Username or ID field is required.'
+    },
+
+    # Fetch Settings
+    'fetch_settings': {
+        'tr': 'Fetch Ayarları',
+        'en': 'Fetch Settings'
+    },
+    'filter_by_reactions': {
+        'tr': 'En çok reaksiyon alan mesajları indir',
+        'en': 'Download most reacted messages'
+    },
+    'download_limit_label': {
+        'tr': 'İlk kaç mesaj indirilsin?',
+        'en': 'Download first N messages?'
+    },
+    'download_limit_placeholder': {
+        'tr': 'Örn: 100',
+        'en': 'Ex: 100'
+    },
+    'download_limit_validation_error': {
+        'tr': 'İndirme limiti için geçerli bir sayı girin (en az 1).',
+        'en': 'Please enter a valid number for the download limit (at least 1).'
+    },
+
     # Loading sayfası
     'loading_title': {
         'tr': 'Mesajlar Taranıyor',

@@ -43,6 +43,16 @@ p {
     text-align: left;
 }
 
+.form-group-checkbox {
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 400px; /* Limit form width */
+    text-align: left;
+    display: flex; /* Use flexbox */
+    align-items: center; /* Vertically align items */
+    gap: 8px; /* Space between checkbox and label */
+}
+
 .form-group label {
     display: block;
     margin-bottom: 8px;

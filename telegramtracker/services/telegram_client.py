@@ -134,7 +134,7 @@ async def count_reactions(msg):
         return 0
     return sum(r.count for r in msg.reactions.results)
 
-async def fetch_reaction_stats_async(chat_identifier, progress_queue, task_data, period_days=None):
+async def fetch_reaction_stats_async(chat_identifier, progress_queue, task_data, period_days=None, reaction_filter=False, download_limit=None):
     """Asynchronous function to fetch reaction statistics and report progress."""
     client = None  # Initialize client as None
     messages = []
@@ -179,7 +179,12 @@ async def fetch_reaction_stats_async(chat_identifier, progress_queue, task_data,
         async for msg in client.iter_messages(entity, offset_date=since_date, reverse=True):
             scanned += 1
             reactions = await count_reactions(msg)
-            if reactions > 0:
+
+            # Apply reaction filter if enabled
+            if reaction_filter and reactions == 0:
+                continue # Skip messages with no reactions if filtering
+
+            if reactions > 0 or not reaction_filter: # Include if reactions > 0 or filter is off
                 # Store message ID and text preview with the count
                 preview = (msg.message or msg.text or "[Media/Empty]")
                 messages.append({
@@ -193,107 +198,118 @@ async def fetch_reaction_stats_async(chat_identifier, progress_queue, task_data,
                 progress_queue.put({'type': 'progress', 'scanned': scanned})
                 await asyncio.sleep(0.1)  # Brief yield control
 
-        print(f"Scan complete. Total scanned: {scanned}, Found with reactions: {len(messages)}")
+        print(f"Scan complete. Total scanned: {scanned}, Found matching criteria: {len(messages)}")
         progress_queue.put({'type': 'progress', 'scanned': scanned})  # Final progress update
 
         # Sort messages by reaction count in descending order
         sorted_messages = sorted(messages, key=lambda x: x['reactions'], reverse=True)
 
+        # Apply download limit after sorting
+        if download_limit is not None:
+            sorted_messages = sorted_messages[:download_limit]
+            print(f"Applied download limit. Processing top {len(sorted_messages)} messages.")
+
         # Send a message to the frontend indicating the start of media processing
-        total_media_to_process = min(len(sorted_messages), 48)
-        print(f"Starting media processing for {total_media_to_process} messages.")
-        progress_queue.put({'type': 'media_phase', 'total_media': total_media_to_process})
+        total_media_to_process = len(sorted_messages) # Process all messages after limit
+        # Only proceed with media processing if reaction filter is enabled
+        if reaction_filter:
+            print(f"Starting media processing for {total_media_to_process} messages.")
+            progress_queue.put({'type': 'media_phase', 'total_media': total_media_to_process})
 
-        # --- Start Media Download and Link Logging ---
-        download_dir = "downloads"
-        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
-        # Sanitize chat_identifier for use in folder name
-        # Use sanitized chat title if available, otherwise use sanitized chat_identifier
-        folder_name = f"{sanitize_filename(getattr(entity, 'title', str(chat_identifier)))}_{timestamp}" # Modified line
-        folder_path = os.path.join(download_dir, folder_name) # Path relative to CWD, will create in CWD/downloads
+            # --- Start Media Download and Link Logging ---
+            download_dir = "downloads"
+            timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
+            # Sanitize chat_identifier for use in folder name
+            # Use sanitized chat title if available, otherwise use sanitized chat_identifier
+            folder_name = f"{sanitize_filename(getattr(entity, 'title', str(chat_identifier)))}_{timestamp}" # Modified line
+            folder_path = os.path.join(download_dir, folder_name) # Path relative to CWD, will create in CWD/downloads
 
-        # Ensure the downloads directory exists and the specific search subfolder
-        os.makedirs(folder_path, exist_ok=True)
+            # Ensure the downloads directory exists and the specific search subfolder
+            os.makedirs(folder_path, exist_ok=True)
 
-        large_media_links = []
-        allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'avi', 'mkv']
-        size_limit_bytes = 250 * 1024 * 1024
+            large_media_links = []
+            allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'avi', 'mkv']
+            size_limit_bytes = 250 * 1024 * 1024
 
-        print(f"Preparing to process top {total_media_to_process} messages for media download...")
+            print(f"Preparing to process top {total_media_to_process} messages for media download...")
 
-        download_tasks = []
-        media_processed_count = 0 # Initialize counter for progress updates
+            download_tasks = []
+            media_processed_count = 0 # Initialize counter for progress updates
 
-        # Fetch message objects first (can also be concurrent, but let's keep it simple for now)
-        message_ids_to_process = [msg_data['id'] for msg_data in sorted_messages[:total_media_to_process]]
-        fetched_message_objects = {}
-        if message_ids_to_process:
-            try:
-                # Fetch messages in batches if needed, but Telethon handles lists well
-                messages_list = await client.get_messages(entity, ids=message_ids_to_process)
-                if messages_list:
-                    for msg_obj in messages_list:
-                        if msg_obj: # Ensure message object is not None
-                           fetched_message_objects[msg_obj.id] = msg_obj
-            except Exception as fetch_err:
-                print(f"Error fetching message batch: {fetch_err}")
-                # Decide how to handle partial fetch failure, maybe proceed with fetched ones
-
-        print(f"Fetched {len(fetched_message_objects)} message objects out of {total_media_to_process}.")
-
-        # Create download tasks for fetched messages
-        for message_id in message_ids_to_process:
-            message = fetched_message_objects.get(message_id)
-            if message:
-                 # Create a task for each message download attempt
-                 task = asyncio.create_task(
-                     download_single_media(
-                         client, message, folder_path, message_id,
-                         progress_queue, total_media_to_process, # Pass queue and total
-                         allowed_extensions, size_limit_bytes, large_media_links, entity
-                     )
-                 )
-                 download_tasks.append(task)
-            else:
-                 print(f"Skipping message ID {message_id} as it could not be fetched.")
-                 # Increment processed count even if skipped/failed fetch
-                 media_processed_count += 1
-                 progress_queue.put({'type': 'media_progress', 'processed_count': media_processed_count, 'total_media': total_media_to_process})
-
-
-        # Run download tasks sequentially
-        if download_tasks:
-            print(f"Starting sequential download of {len(download_tasks)} media items...")
-            media_processed_count = 0 # Reset counter for sequential processing
-            for task in download_tasks:
+            # Fetch message objects first (can also be concurrent, but let's keep it simple for now)
+            message_ids_to_process = [msg_data['id'] for msg_data in sorted_messages[:total_media_to_process]]
+            fetched_message_objects = {}
+            if message_ids_to_process:
                 try:
-                    result = await task
-                    if result is True: # Our helper function returns True if processed
-                        media_processed_count += 1
-                except Exception as e:
-                    print(f"A download task failed: {e}")
-                    media_processed_count += 1 # Count errors as processed for progress bar completion
+                    # Fetch messages in batches if needed, but Telethon handles lists well
+                    messages_list = await client.get_messages(entity, ids=message_ids_to_process)
+                    if messages_list:
+                        for msg_obj in messages_list:
+                            if msg_obj: # Ensure message object is not None
+                               fetched_message_objects[msg_obj.id] = msg_obj
+                except Exception as fetch_err:
+                    print(f"Error fetching message batch: {fetch_err}")
+                    # Decide how to handle partial fetch failure, maybe proceed with fetched ones
 
-                # Update progress after each task completes
-                progress_queue.put({'type': 'media_progress', 'processed_count': media_processed_count, 'total_media': total_media_to_process})
-                await asyncio.sleep(0.1) # Brief yield control between downloads
+            print(f"Fetched {len(fetched_message_objects)} message objects out of {total_media_to_process}.")
 
-            print(f"Finished processing {media_processed_count}/{total_media_to_process} media messages.")
+            # Create download tasks for fetched messages
+            for message_id in message_ids_to_process:
+                message = fetched_message_objects.get(message_id)
+                if message:
+                     # Create a task for each message download attempt
+                     task = asyncio.create_task(
+                         download_single_media(
+                             client, message, folder_path, message_id,
+                             progress_queue, total_media_to_process, # Pass queue and total
+                             allowed_extensions, size_limit_bytes, large_media_links, entity
+                         )
+                     )
+                     download_tasks.append(task)
+                else:
+                     print(f"Skipping message ID {message_id} as it could not be fetched.")
+                     # Increment processed count even if skipped/failed fetch
+                     media_processed_count += 1
+                     progress_queue.put({'type': 'media_progress', 'processed_count': media_processed_count, 'total_media': total_media_to_process})
 
+
+            # Run download tasks sequentially
+            if download_tasks:
+                print(f"Starting sequential download of {len(download_tasks)} media items...")
+                media_processed_count = 0 # Reset counter for sequential processing
+                for task in download_tasks:
+                    try:
+                        result = await task
+                        if result is True: # Our helper function returns True if processed
+                            media_processed_count += 1
+                    except Exception as e:
+                        print(f"A download task failed: {e}")
+                        media_processed_count += 1 # Count errors as processed for progress bar completion
+
+                    # Update progress after each task completes
+                    progress_queue.put({'type': 'media_progress', 'processed_count': media_processed_count, 'total_media': total_media_to_process})
+                    await asyncio.sleep(0.1) # Brief yield control between downloads
+
+                print(f"Finished processing {media_processed_count}/{total_media_to_process} media messages.")
+
+            else:
+                print("No media download tasks were created.")
+
+
+            if large_media_links:
+                # Save links file in the specific search subfolder
+                links_file_path = os.path.join(folder_path, "large_media_links.txt")
+                with open(links_file_path, "w") as f:
+                    for link_info in large_media_links:
+                        f.write(link_info + "\n")
+                print(f"Large media links saved to {links_file_path}")
+
+            print("Media download and link logging complete for top messages.")
+            # --- End Media Download and Link Logging ---
         else:
-            print("No media download tasks were created.")
-
-
-        if large_media_links:
-            # Save links file in the specific search subfolder
-            links_file_path = os.path.join(folder_path, "large_media_links.txt")
-            with open(links_file_path, "w") as f:
-                for link_info in large_media_links:
-                    f.write(link_info + "\n")
-            print(f"Large media links saved to {links_file_path}")
-
-        print("Media download and link logging complete for top messages.")
-        # --- End Media Download and Link Logging ---
+            print("Reaction filter is off. Skipping media download.")
+            # Send a media phase complete message even if skipping download
+            progress_queue.put({'type': 'media_phase', 'total_media': 0}) # Indicate 0 media to process
 
         # Send complete message after all processing is done
         progress_queue.put({'type': 'complete'})
@@ -337,7 +353,7 @@ def build_message_link(chat, msg_id):
 
     return f"https://t.me/c/{cid}/{msg_id}"
 
-def run_fetch_in_background(chat_identifier, progress_queue, task_data, period_days=None):
+def run_fetch_in_background(chat_identifier, progress_queue, task_data, period_days=None, reaction_filter=False, download_limit=None):
     """Run async fetch function in background."""
     task_data['is_running'] = True
     task_data['results'] = None
@@ -357,19 +373,18 @@ def run_fetch_in_background(chat_identifier, progress_queue, task_data, period_d
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         entity, messages, scanned, error = loop.run_until_complete(
-            fetch_reaction_stats_async(chat_identifier, progress_queue, task_data, period_days)
+            fetch_reaction_stats_async(chat_identifier, progress_queue, task_data, period_days, reaction_filter, download_limit)
         )
         loop.close()
 
         if error:
             task_data['error'] = error
         else:
-            # Sort messages by reaction count in descending order
-            sorted_messages = sorted(messages, key=lambda x: x['reactions'], reverse=True)
-            task_data['results'] = sorted_messages
+            # fetch_reaction_stats_async now handles sorting and limiting
+            task_data['results'] = messages # messages is already sorted and limited
             task_data['entity'] = entity  # Store entity info for link building
             task_data['scanned_count'] = scanned
-            print(f"Results saved: {len(sorted_messages)} messages.")
+            print(f"Results saved: {len(messages)} messages.")
 
     except Exception as e:
         task_data['error'] = f"Error in background thread: {e}"

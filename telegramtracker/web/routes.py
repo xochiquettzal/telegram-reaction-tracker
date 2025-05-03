@@ -64,10 +64,27 @@ def register_routes(app):
 
         chat_input = request.form.get('chat_id')
         period_choice = request.form.get('period')
+        reaction_filter = request.form.get('reaction_filter') == 'true' # Checkbox value is 'true' if checked
+        download_limit_str = request.form.get('download_limit')
 
         if not chat_input:
             # Error case: chat_id required
+            flash(get_text('chat_id_required_error', session.get('lang', 'tr')), 'error') # Need to add this translation
             return redirect(url_for('index'))
+
+        # Convert download_limit to integer, handle empty string
+        download_limit = None
+        if download_limit_str:
+            try:
+                limit_value = int(download_limit_str)
+                if limit_value > 0:
+                    download_limit = limit_value
+                else:
+                    flash(get_text('download_limit_validation_error', session.get('lang', 'tr')), 'error') # Use existing translation
+                    return redirect(url_for('index'))
+            except ValueError:
+                flash(get_text('download_limit_validation_error', session.get('lang', 'tr')), 'error') # Use existing translation
+                return redirect(url_for('index'))
 
         # Process input for username or ID format
         try:
@@ -89,8 +106,8 @@ def register_routes(app):
 
         # Start fetch process in background
         thread = threading.Thread(
-            target=run_fetch_in_background, 
-            args=(processed_identifier, task_data['progress_queue'], task_data, period)
+            target=run_fetch_in_background,
+            args=(processed_identifier, task_data['progress_queue'], task_data, period, reaction_filter, download_limit)
         )
         thread.daemon = True  # Allow app exit even if thread is running
         thread.start()

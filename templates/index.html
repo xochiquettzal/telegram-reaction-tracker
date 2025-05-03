@@ -255,6 +255,18 @@
                     </select>
                 </div>
 
+                <div class="fetch-settings-section">
+                    <h3>{{ t('fetch_settings', lang) }}</h3>
+                    <div class="form-group-checkbox">
+                        <input type="checkbox" id="reaction_filter" name="reaction_filter" value="true">
+                        <label for="reaction_filter">{{ t('filter_by_reactions', lang) }}</label>
+                    </div>
+                    <div class="form-group">
+                        <label for="download_limit">{{ t('download_limit_label', lang) }}</label>
+                        <input type="number" id="download_limit" name="download_limit" class="form-control" min="1" placeholder="{{ t('download_limit_placeholder', lang) }}">
+                    </div>
+                </div>
+
                 <button type="submit" class="btn">{{ t('fetch_button', lang) }}</button>
             </form>
         </div>
@@ -264,12 +276,6 @@
         </div>
     </div>
 
-    <script>
-        function changeLanguage(lang) {
-            const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('lang', lang);
-            window.location.href = currentUrl.toString();
-        }
-    </script>
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
 </body>
 </html>
