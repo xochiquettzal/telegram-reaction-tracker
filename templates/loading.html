@@ -113,6 +113,7 @@
             text-align: center;
             max-width: 600px;
             margin: 3rem auto;
+            transition: background-color 0.5s ease; /* Add smooth transition */
         }
         
         .loading-title {
@@ -120,11 +121,13 @@
             margin-bottom: 1rem;
             color: var(--outer-space);
             font-weight: bold;
+            transition: color 0.5s ease; /* Add smooth transition */
         }
         
         .loading-description {
             color: var(--paynes-gray);
             margin-bottom: 2rem;
+            transition: opacity 0.5s ease; /* Add smooth transition */
         }
         
         .loader-container {
@@ -141,6 +144,7 @@
             border-radius: 50%;
             border-top-color: var(--air-superiority-blue);
             animation: spin 1.5s linear infinite;
+            transition: border-color 0.5s ease, border-top-color 0.5s ease, animation-duration 0.5s ease;
         }
         
         @keyframes spin {
@@ -205,11 +209,16 @@
             <div class="loader-container">
                 <div class="loader"></div>
                 
-                <div class="status-text">
-                    <span id="status-label">{{ t('messages_scanned', lang) }}</span> 
+                <div id="scan-progress-status" class="status-text">
+                    <span id="status-label">{{ t('messages_scanned', lang) }}</span>
                     <span id="status-count">0</span>
                 </div>
                 <div id="loading-status" class="status-text">{{ t('please_wait', lang) }}</div>
+
+                <!-- New element for media download progress -->
+                <div id="media-progress-status" class="status-text" style="display: none;">
+                    {{ t('media_processed', lang) }} <span id="media-count">0</span> / <span id="media-total">0</span>
+                </div>
             </div>
         </div>
         
@@ -229,6 +238,10 @@
         const source = new EventSource("{{ url_for('stream_progress') }}");
         const statusCount = document.getElementById("status-count");
         const loadingStatus = document.getElementById("loading-status");
+        const scanProgressStatus = document.getElementById("scan-progress-status");
+        const mediaProgressStatus = document.getElementById("media-progress-status");
+        const mediaCount = document.getElementById("media-count");
+        const mediaTotal = document.getElementById("media-total");
         
         let scannedMessagesCount = 0;
         
@@ -241,7 +254,46 @@
                     // İlerleme güncellemesi
                     scannedMessagesCount = data.scanned;
                     statusCount.textContent = scannedMessagesCount;
+                    // Ensure scan progress is visible and media progress is hidden
+                    scanProgressStatus.style.display = "block";
+                    mediaProgressStatus.style.display = "none";
                 } 
+                else if (data.type === "media_phase") {
+                    // Media processing phase started
+                    // Update the page title
+                    document.title = "{{ t('downloading', lang) or 'Downloading...' }} - {{ t('app_name', lang) }}";
+                    
+                    // Update the loading title to indicate we're now downloading media
+                    const loadingTitle = document.querySelector(".loading-title");
+                    loadingTitle.textContent = "{{ t('downloading', lang) or 'Downloading...' }}";
+                    loadingTitle.style.color = "#2c6fad"; // Change title color to a blue shade
+                    
+                    // Update the loading description
+                    document.querySelector(".loading-description").textContent = "{{ t('downloading_description', lang) or 'We are downloading media files for messages with reactions. This might take a while.' }}";
+                    
+                    loadingStatus.textContent = `${data.total_media} {{ t('media_items_found', lang) or 'media items found' }}. {{ t('downloading', lang) or 'Downloading...' }}`;
+                    
+                    // Hide scan progress and show media progress
+                    scanProgressStatus.style.display = "none";
+                    mediaProgressStatus.style.display = "block";
+                    
+                    // Update media total
+                    mediaTotal.textContent = data.total_media;
+                    mediaCount.textContent = "0";
+                    
+                    // Change the loader color and animation speed to indicate a different phase
+                    const loader = document.querySelector(".loader");
+                    loader.style.borderTopColor = "#7ea0b7";
+                    loader.style.borderColor = "#d1e6ff";
+                    loader.style.animationDuration = "1s"; // Speed up the animation
+                    
+                    // Change the loading card background color for a visual transition
+                    document.querySelector(".loading-card").style.backgroundColor = "#f0f7ff";
+                }
+                else if (data.type === "media_progress") {
+                    // Update media progress count
+                    mediaCount.textContent = data.processed_count;
+                }
                 else if (data.type === "complete") {
                     // Tamamlandı, sonuçlar sayfasına yönlendir
                     loadingStatus.textContent = "{{ t('redirecting', lang) or 'Redirecting...' }}";

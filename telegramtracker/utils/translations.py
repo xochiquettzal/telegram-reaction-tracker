@@ -223,6 +223,22 @@ translations = {
     'redirecting': {
         'tr': 'Yönlendiriliyor...',
         'en': 'Redirecting...'
+    },
+    'media_items_found': {
+        'tr': 'medya öğesi bulundu',
+        'en': 'media items found'
+    },
+    'downloading': {
+        'tr': 'İndiriliyor...',
+        'en': 'Downloading...'
+    },
+    'media_processed': {
+        'tr': 'İşlenen Medya:',
+        'en': 'Media processed:'
+    },
+    'downloading_description': {
+        'tr': 'Tepki alan mesajlar için medya dosyalarını indiriyoruz. Bu işlem biraz zaman alabilir.',
+        'en': 'We are downloading media files for messages with reactions. This might take a while.'
     }
 }
 
@@ -232,4 +248,4 @@ def get_text(key, lang='tr'):
         return key  # Return the key itself if key doesn't exist
     if lang not in translations[key]:
         return translations[key]['en']  # Return English if language doesn't exist
-    return translations[key][lang] 
+    return translations[key][lang]

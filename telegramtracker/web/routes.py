@@ -123,6 +123,12 @@ def register_routes(app):
                     if update['type'] == 'progress':
                         last_scanned = update['scanned']
                         yield f"data: {{\"type\": \"progress\", \"scanned\": {last_scanned}}}\n\n"
+                    elif update['type'] == 'media_phase':
+                        # Forward media phase message to frontend
+                        yield f"data: {{\"type\": \"media_phase\", \"total_media\": {update['total_media']}}}\n\n"
+                    elif update['type'] == 'media_progress':
+                        # Forward media progress message to frontend
+                        yield f"data: {{\"type\": \"media_progress\", \"processed_count\": {update['processed_count']}, \"total_media\": {update['total_media']}}}\n\n"
                     elif update['type'] == 'error':
                         yield f"data: {{\"type\": \"error\", \"message\": \"{update['message']}\"}}\n\n"
                         break
@@ -225,6 +231,12 @@ def register_routes(app):
             except Exception as e:
                 print(f"Error saving to history: {e}")
                 # Continue showing results even if saving fails
+
+        # Reset task_data after processing results to prevent re-saving
+        task_data['results'] = None
+        task_data['entity'] = None
+        task_data['original_identifier'] = None
+        task_data['original_period'] = None
         
         return render_template(
             'results.html',
@@ -267,7 +279,7 @@ def register_routes(app):
         
         # Paginate results
         page = request.args.get('page', 1, type=int)
-        per_page = 10
+        per_page = 24
         
         total_items = len(results)
         total_pages = (total_items + per_page - 1) // per_page
