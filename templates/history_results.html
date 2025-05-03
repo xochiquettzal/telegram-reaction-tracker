@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ t('history_results_title', lang) }} - {{ history_entry['chat_title'] or history_entry['chat_identifier'] }}</title>
+    <title>{{ t('history_results_title', lang) }} - {{ history['chat_title'] or history['chat_identifier'] }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="icon" href="{{ url_for('static', filename='img/icon.ico') }}" type="image/x-icon">
     <link rel="shortcut icon" href="{{ url_for('static', filename='img/icon.ico') }}" type="image/x-icon">
@@ -306,19 +306,19 @@
             <div class="search-meta">
                 <div class="meta-item">
                     <div class="meta-label">{{ t('search_chat', lang) }}</div>
-                    <div class="meta-value">{{ history_entry['chat_title'] or history_entry['chat_identifier'] }}</div>
+                    <div class="meta-value">{{ history['chat_title'] or history['chat_identifier'] }}</div>
                 </div>
                 <div class="meta-item">
                     <div class="meta-label">{{ t('search_date', lang) }}</div>
-                    <div class="meta-value">{{ history_entry['timestamp'] }}</div>
+                    <div class="meta-value">{{ history['timestamp'] }}</div>
                 </div>
                 <div class="meta-item">
                     <div class="meta-label">{{ t('search_period', lang) }}</div>
-                    <div class="meta-value">{{ history_entry['period_days'] if history_entry['period_days'] is not none else t('period_all', lang) }}</div>
+                    <div class="meta-value">{{ history['period_days'] if history['period_days'] is not none else t('period_all', lang) }}</div>
                 </div>
                 <div class="meta-item">
                     <div class="meta-label">{{ t('messages_found_count', lang) }}</div>
-                    <div class="meta-value">{{ history_entry['messages_found'] }}</div>
+                    <div class="meta-value">{{ history['messages_found'] }}</div>
                 </div>
             </div>
             
