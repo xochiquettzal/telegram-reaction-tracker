@@ -3,6 +3,8 @@
 > A powerful analytics tool that helps you discover the most popular and engaging messages in any Telegram chat or channel by tracking reaction counts.
 
 Telegram Reaction Tracker is a web application that finds and lists the most reacted messages in a Telegram chat.
+![image](https://github.com/user-attachments/assets/4fd50e96-232d-4d95-ad2e-2b17a2e5e069)
+
 
 ## Features
 
