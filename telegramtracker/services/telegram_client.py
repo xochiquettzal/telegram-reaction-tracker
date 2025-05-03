@@ -4,7 +4,7 @@ import os
 import re # Added import for sanitization
 import time # Added import for download speed calculation
 from telethon import TelegramClient
-from telethon.tl.types import Message # Added import
+from telethon.tl.types import Message, DocumentAttributeAnimated # Added import
 
 # Telegram API Settings - Load from .env file
 API_ID = int(os.getenv('API_ID', 0))  # Default value set to 0
@@ -66,7 +66,12 @@ async def download_single_media(client, message, folder_path, message_id, progre
             if hasattr(message.media, 'document') and message.media.document:
                 if hasattr(message.media.document, 'size'):
                     file_size = message.media.document.size
-                if hasattr(message.media.document, 'attributes'):
+
+                # Check for video/mp4 documents, which can include GIFs
+                if message.media.document.mime_type == 'video/mp4':
+                    file_extension = 'mp4' # Save video/mp4 as MP4
+                    is_supported_media = True
+                elif hasattr(message.media.document, 'attributes'):
                     for attr in message.media.document.attributes:
                         if hasattr(attr, 'file_name'):
                             _, ext = os.path.splitext(attr.file_name)
@@ -94,7 +99,7 @@ async def download_single_media(client, message, folder_path, message_id, progre
                     print(f"Downloading media for message {message_id}...")
                     try:
                         if not file_extension:
-                            file_extension = 'bin'
+                            file_extension = 'bin' # Fallback extension
                         file_name = f"{message_id}.{file_extension}"
                         await client.download_media(
                             message,
