@@ -4,7 +4,7 @@
 
 Telegram Tepki İzleyici, bir Telegram sohbetindeki en çok tepki alan mesajları bulup listeleyen bir web uygulamasıdır.
 
-[Ekran Görüntüsü: Arama seçenekleriyle ana sayfa]
+![image](https://github.com/user-attachments/assets/06a37d91-079e-4496-9805-d05cd0c24250)
 
 ## Özellikler
 
@@ -82,6 +82,6 @@ telegramTracker/
 
 Geçmiş sayfası, önceki arama sorgularınızı ve sonuçlarını görüntülemenizi sağlar.
 
-[Ekran Görüntüsü: Toplu silme seçenekleriyle geçmiş sayfası]
+![image](https://github.com/user-attachments/assets/02e8fe7c-7511-4f44-8d90-235100949a50)
 
 Tek tek geçmiş kayıtlarını silebilir veya birden çok kaydı aynı anda kaldırmak için onay kutularını ve "Seçilenleri Sil" düğmesini kullanabilirsiniz.
