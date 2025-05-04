@@ -128,9 +128,90 @@ async def download_single_media(client, message, folder_path, message_id, progre
     # A better approach might be to update progress after asyncio.gather finishes.
     # Let's stick to updating progress after gather for simplicity and accuracy.
     # Return True if processed (download attempted/skipped), False otherwise.
+    # Return True if processed (download attempted/skipped/errored), False otherwise.
+# --- Original Download Helper (Restored) ---
+async def download_single_media(client, message, folder_path, message_id, progress_queue, total_media_to_process, allowed_extensions, size_limit_bytes, large_media_links, entity):
+    """
+    Downloads media for a single message. Attempts HTTP download first (if possible),
+    otherwise falls back to Telethon's download_media.
+    """
+    media_processed_count = 0
+    try:
+        if message.media:
+            file_size = None
+            file_extension = None
+            is_supported_media = False
+            file_name = None # Define file_name earlier
+
+            # Determine file type, extension, and size
+            if hasattr(message.media, 'document') and message.media.document:
+                if hasattr(message.media.document, 'size'):
+                    file_size = message.media.document.size
+                if message.media.document.mime_type == 'video/mp4':
+                    file_extension = 'mp4'
+                    is_supported_media = True
+                elif hasattr(message.media.document, 'attributes'):
+                    for attr in message.media.document.attributes:
+                        if hasattr(attr, 'file_name'):
+                            _, ext = os.path.splitext(attr.file_name)
+                            if ext:
+                                file_extension = ext.lower().lstrip('.')
+                                if file_extension in allowed_extensions:
+                                    is_supported_media = True
+                                break
+            elif hasattr(message.media, 'photo') and message.media.photo:
+                file_extension = 'jpg'
+                is_supported_media = True
+                if hasattr(message.media.photo, 'sizes') and message.media.photo.sizes:
+                    largest_size = max(message.media.photo.sizes, key=lambda s: getattr(s, 'size', 0))
+                    file_size = getattr(largest_size, 'size', None)
+
+            # Proceed if media type is supported
+            if is_supported_media:
+                if not file_extension:
+                    file_extension = 'bin' # Fallback extension
+                file_name = f"{message_id}.{file_extension}"
+                full_file_path = os.path.join(folder_path, file_name)
+
+                # Check size limit
+                if file_size is not None and file_size > size_limit_bytes:
+                    link = build_message_link(entity, message_id)
+                    large_media_links.append(f"Message ID: {message_id}, Link: {link}, Size: {file_size} bytes")
+                    print(f"Skipping large media for message {message_id} ({file_size} bytes). Link added to list.")
+                    media_processed_count = 1
+                else:
+                    # --- Use Telethon Download ---
+                    print(f"Using Telethon to download media for message {message_id}...")
+                    try:
+                        if not file_extension:
+                            file_extension = 'bin' # Fallback extension
+                        file_name = f"{message_id}.{file_extension}"
+                        full_file_path = os.path.join(folder_path, file_name) # Define path here
+
+                        await client.download_media(
+                            message,
+                            file=full_file_path,
+                            progress_callback=lambda current, total: download_progress_callback(current, total, message_id)
+                        )
+                        print(f"Telethon downloaded media for message {message_id}.")
+                        media_processed_count = 1 # Mark as processed after successful download
+                    except Exception as download_e:
+                        print(f"Telethon download error for message {message_id}: {download_e}")
+                        media_processed_count = 1 # Still count as processed on error
+            else:
+                print(f"Message {message_id} has media but not a supported type or extension: {file_extension}")
+                media_processed_count = 1 # Count as processed
+        else:
+            print(f"Message {message_id} has no media.")
+            media_processed_count = 1 # Count as processed
+
+    except Exception as e:
+        print(f"Error processing message {message_id} for download: {e}")
+        media_processed_count = 1 # Count as processed on error
+
     return media_processed_count > 0 # Return True if this message was handled
 
-# --- End Helper Function ---
+# --- End Helper Functions ---
 
 
 async def count_reactions(msg):
@@ -275,30 +356,46 @@ async def fetch_reaction_stats_async(chat_identifier, progress_queue, task_data,
                      print(f"Skipping message ID {message_id} as it could not be fetched.")
                      # Increment processed count even if skipped/failed fetch
                      media_processed_count += 1
+                     # Progress update for skipped/failed fetch messages is handled here
                      progress_queue.put({'type': 'media_progress', 'processed_count': media_processed_count, 'total_media': total_media_to_process})
 
 
-            # Run download tasks sequentially
+            # Run download tasks concurrently
             if download_tasks:
-                print(f"Starting sequential download of {len(download_tasks)} media items...")
-                media_processed_count = 0 # Reset counter for sequential processing
-                for task in download_tasks:
-                    try:
-                        result = await task
-                        if result is True: # Our helper function returns True if processed
-                            media_processed_count += 1
-                    except Exception as e:
-                        print(f"A download task failed: {e}")
-                        media_processed_count += 1 # Count errors as processed for progress bar completion
+                print(f"Starting concurrent download of {len(download_tasks)} media items...")
+                # Use asyncio.gather to run tasks concurrently, return_exceptions=True to handle errors
+                results = await asyncio.gather(*download_tasks, return_exceptions=True)
 
-                    # Update progress after each task completes
-                    progress_queue.put({'type': 'media_progress', 'processed_count': media_processed_count, 'total_media': total_media_to_process})
-                    await asyncio.sleep(0.1) # Brief yield control between downloads
+                # Process results after all tasks are finished
+                successful_downloads = 0
+                failed_downloads = 0
+                for i, result in enumerate(results):
+                    if isinstance(result, Exception):
+                        # Log the exception for the specific task (optional: get message_id if needed)
+                        print(f"Download task {i+1} failed: {result}")
+                        failed_downloads += 1
+                    elif result is True: # Our helper function returns True if processed successfully
+                        successful_downloads += 1
+                    # Note: If download_single_media returns False or None, it means it didn't process,
+                    # but we counted skipped/failed fetches earlier. Here we focus on gather results.
 
-                print(f"Finished processing {media_processed_count}/{total_media_to_process} media messages.")
+                # Update the total processed count based on gather results + previously skipped/failed fetches
+                # The initial media_processed_count already accounts for skipped/failed fetches.
+                # We add the count of successful downloads from gather.
+                # Note: A task failing in gather still means it was 'processed' in terms of the progress bar.
+                final_processed_count = media_processed_count + len(results) # Count all attempted tasks from gather
+
+                print(f"Finished processing media. Successful: {successful_downloads}, Failed/Skipped: {failed_downloads + media_processed_count}, Total Attempted: {len(results) + media_processed_count}")
+
+                # Send final media progress update after gather completes
+                # Ensure the count doesn't exceed total_media if there were discrepancies
+                final_processed_count = min(final_processed_count, total_media_to_process)
+                progress_queue.put({'type': 'media_progress', 'processed_count': final_processed_count, 'total_media': total_media_to_process})
 
             else:
                 print("No media download tasks were created.")
+                # Ensure progress completes even if no tasks run
+                progress_queue.put({'type': 'media_progress', 'processed_count': media_processed_count, 'total_media': total_media_to_process})
 
 
             if large_media_links:
