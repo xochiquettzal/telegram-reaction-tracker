@@ -14,10 +14,10 @@ SESSION_NAME = 'session'  # Session file name
 # Helper function to sanitize filenames
 def sanitize_filename(name):
     """Sanitizes a string to be safe for use as a filename or directory name."""
-    # Replace invalid characters with underscores
-    s = re.sub(r'[^\w.-]', '_', name)
-    # Remove leading/trailing whitespace
-    s = s.strip()
+    # Replace spaces and invalid characters with underscores
+    s = re.sub(r'[^\w.-]+', '_', name) # Replace one or more non-word chars (including space) with single underscore
+    # Remove leading/trailing underscores and dots
+    s = s.strip('_.')
     # Limit length (optional, but good practice)
     s = s[:200] # Limit to 200 characters
     return s
@@ -53,84 +53,78 @@ async def download_progress_callback(current, total, message_id):
     if current == total and message_id in download_progress:
         del download_progress[message_id]
 
-# --- New Helper Function for Concurrent Download ---
-async def download_single_media(client, message, folder_path, message_id, progress_queue, total_media_to_process, allowed_extensions, size_limit_bytes, large_media_links, entity):
-    """Downloads media for a single message and updates progress."""
-    media_processed_count = 0 # Local counter for this task
-    try:
-        if message.media:
-            file_size = None
-            file_extension = None
-            is_supported_media = False
+# --- Helper Function to Get Media Posts in a Group ---
+async def _get_media_posts_in_group(client, chat, original_post, max_amp=10):
+    """
+    Searches for Telegram posts that are part of the same group of uploads.
+    The search is conducted around the id of the original post with an amplitude
+    of `max_amp` both ways.
+    Returns a list of [post] where each post has media and is in the same grouped_id.
+    """
+    if original_post.grouped_id is None:
+        # If no grouped_id, return the original post if it has media
+        return [original_post] if original_post.media is not None else []
 
-            if hasattr(message.media, 'document') and message.media.document:
-                if hasattr(message.media.document, 'size'):
-                    file_size = message.media.document.size
+    # Generate IDs to search around the original post's ID
+    search_ids = list(range(original_post.id - max_amp, original_post.id + max_amp + 1))
+    
+    # Fetch messages using the generated IDs
+    posts = await client.get_messages(chat, ids=search_ids)
+    
+    media_posts = []
+    # Filter posts to find those belonging to the same group
+    for post in posts:
+        if post is not None and post.grouped_id == original_post.grouped_id and post.media is not None:
+            media_posts.append(post)
+            
+    # Ensure the original post is included if it wasn't fetched or was None initially
+    found_original = any(p.id == original_post.id for p in media_posts)
+    if not found_original and original_post.media is not None:
+         # Check if original_post itself is valid and has media
+         original_in_group = await client.get_messages(chat, ids=original_post.id)
+         if original_in_group and original_in_group.grouped_id == original_post.grouped_id:
+              media_posts.append(original_in_group) # Use the freshly fetched version
 
-                # Check for video/mp4 documents, which can include GIFs
-                if message.media.document.mime_type == 'video/mp4':
-                    file_extension = 'mp4' # Save video/mp4 as MP4
-                    is_supported_media = True
-                elif hasattr(message.media.document, 'attributes'):
-                    for attr in message.media.document.attributes:
-                        if hasattr(attr, 'file_name'):
-                            _, ext = os.path.splitext(attr.file_name)
-                            if ext:
-                                file_extension = ext.lower().lstrip('.')
-                                if file_extension in allowed_extensions:
-                                    is_supported_media = True
-                                break
+    # Sort by ID to maintain order
+    media_posts.sort(key=lambda p: p.id)
+    
+    return media_posts
 
-            elif hasattr(message.media, 'photo') and message.media.photo:
-                file_extension = 'jpg'
-                is_supported_media = True
-                if hasattr(message.media.photo, 'sizes') and message.media.photo.sizes:
-                    largest_size = max(message.media.photo.sizes, key=lambda s: getattr(s, 'size', 0))
-                    file_size = getattr(largest_size, 'size', None)
+# --- Helper Function for Media Type Detection ---
+def detect_media_type_and_size(message):
+    """Detects media type, extension, and size from a message."""
+    file_size = None
+    file_extension = None
+    is_supported_media = False
+    allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'avi', 'mkv']
 
-            if is_supported_media:
-                if file_size is not None and file_size > size_limit_bytes:
-                    link = build_message_link(entity, message_id)
-                    large_media_links.append(f"Message ID: {message_id}, Link: {link}, Size: {file_size} bytes")
-                    print(f"Skipping large media for message {message_id} ({file_size} bytes). Link added to list.")
-                    # Even if skipped, count it as processed for the overall progress
-                    media_processed_count = 1
-                else:
-                    print(f"Downloading media for message {message_id}...")
-                    try:
-                        if not file_extension:
-                            file_extension = 'bin' # Fallback extension
-                        file_name = f"{message_id}.{file_extension}"
-                        await client.download_media(
-                            message,
-                            file=os.path.join(folder_path, file_name),
-                            progress_callback=lambda current, total: download_progress_callback(current, total, message_id)
-                        )
-                        print(f"Downloaded media for message {message_id}.")
-                        media_processed_count = 1 # Mark as processed after successful download
-                    except Exception as download_e:
-                        print(f"Error downloading media for message {message_id}: {download_e}")
-                        # Still count as processed even if download failed, to advance progress bar
-                        media_processed_count = 1
-            else:
-                print(f"Message {message_id} has media but not a supported type or extension: {file_extension}")
-                media_processed_count = 1 # Count as processed
-        else:
-            print(f"Message {message_id} has no media.")
-            media_processed_count = 1 # Count as processed
+    if hasattr(message.media, 'document') and message.media.document:
+        if hasattr(message.media.document, 'size'):
+            file_size = message.media.document.size
 
-    except Exception as e:
-        print(f"Error processing message {message_id} for download: {e}")
-        media_processed_count = 1 # Count as processed on error
+        if message.media.document.mime_type == 'video/mp4':
+            file_extension = 'mp4'
+            is_supported_media = True
+        elif hasattr(message.media.document, 'attributes'):
+            for attr in message.media.document.attributes:
+                if hasattr(attr, 'file_name'):
+                    _, ext = os.path.splitext(attr.file_name)
+                    if ext:
+                        file_extension = ext.lower().lstrip('.')
+                        if file_extension in allowed_extensions:
+                            is_supported_media = True
+                        break
 
-    # Send progress update ONLY if this message was actually processed (downloaded, skipped, or errored)
-    # This requires careful management of the counter across tasks.
-    # A better approach might be to update progress after asyncio.gather finishes.
-    # Let's stick to updating progress after gather for simplicity and accuracy.
-    # Return True if processed (download attempted/skipped), False otherwise.
-    return media_processed_count > 0 # Return True if this message was handled
+    elif hasattr(message.media, 'photo') and message.media.photo:
+        file_extension = 'jpg'
+        is_supported_media = True
+        if hasattr(message.media.photo, 'sizes') and message.media.photo.sizes:
+            largest_size = max(message.media.photo.sizes, key=lambda s: getattr(s, 'size', 0))
+            file_size = getattr(largest_size, 'size', None)
 
-# --- End Helper Function ---
+    return is_supported_media, file_extension, file_size
+
+# --- End Helper Functions ---
 
 
 async def count_reactions(msg):
@@ -209,138 +203,293 @@ async def fetch_reaction_stats_async(chat_identifier, progress_queue, task_data,
         # Sort messages by reaction count in descending order
         sorted_messages = sorted(messages, key=lambda x: x['reactions'], reverse=True)
 
-        # Apply download limit after sorting
+        # Apply download limit based on top N message entries (groups count as 1)
+        final_message_ids_to_process = set()
         if download_limit is not None:
-            sorted_messages = sorted_messages[:download_limit]
-            print(f"Applied download limit. Processing top {len(sorted_messages)} messages.")
+            print(f"Applying download limit: {download_limit}")
+            selected_entries_count = 0
+            processed_group_ids = set()
+            processed_message_ids = set() # Track all message IDs belonging to selected entries
 
-        # Send a message to the frontend indicating the start of media processing
-        total_media_to_process = len(sorted_messages) # Process all messages after limit
-        # Only proceed with media processing if reaction filter is enabled
-        if reaction_filter:
-            print(f"Starting media processing for {total_media_to_process} messages.")
-            progress_queue.put({'type': 'media_phase', 'total_media': total_media_to_process})
+            for msg_data in sorted_messages:
+                if selected_entries_count >= download_limit:
+                    print(f"Download limit of {download_limit} reached.")
+                    break
 
+                message_id = msg_data['id']
+                if message_id in processed_message_ids: # Skip if already part of a selected group
+                    # print(f"  Skipping message {message_id} (already processed in a group).") # Optional detailed log
+                    continue
+
+                # Fetch the single message object to check its group_id
+                message_obj = None
+                try:
+                    # Fetch individually to avoid batch errors affecting the limit logic
+                    message_obj = await client.get_messages(entity, ids=message_id)
+                    if not message_obj:
+                         print(f"Warning: Could not fetch message {message_id} for limit check. Skipping.")
+                         continue
+                except Exception as fetch_err:
+                    print(f"Warning: Error fetching message {message_id} for limit check: {fetch_err}. Skipping.")
+                    continue
+
+                group_id = getattr(message_obj, 'grouped_id', None)
+
+                if group_id:
+                    if group_id not in processed_group_ids:
+                        print(f"Selecting group {group_id} (Entry {selected_entries_count + 1}/{download_limit})")
+                        processed_group_ids.add(group_id)
+                        selected_entries_count += 1
+                        # Find all messages belonging to this group using _get_media_posts_in_group
+                        try:
+                            # Use the already fetched message_obj for efficiency
+                            media_posts_in_group = await _get_media_posts_in_group(client, entity, message_obj)
+                            group_message_ids = {post.id for post in media_posts_in_group}
+                            final_message_ids_to_process.update(group_message_ids)
+                            processed_message_ids.update(group_message_ids) # Mark all as processed
+                            print(f"  Added {len(group_message_ids)} messages from group {group_id} to download list.")
+                        except Exception as group_fetch_err:
+                             print(f"  Warning: Error fetching full group {group_id}: {group_fetch_err}. Adding only original message {message_id}.")
+                             # Add the original message ID even if group fetch failed
+                             final_message_ids_to_process.add(message_id)
+                             processed_message_ids.add(message_id)
+
+                    # else: group already processed, skip this message_id as it's part of it
+                else:
+                    # Standalone message
+                    print(f"Selecting standalone message {message_id} (Entry {selected_entries_count + 1}/{download_limit})")
+                    final_message_ids_to_process.add(message_id)
+                    processed_message_ids.add(message_id)
+                    selected_entries_count += 1
+            
+            print(f"Final list of message IDs to process for media: {len(final_message_ids_to_process)}")
+        else:
+            # No limit, process all sorted messages
+            final_message_ids_to_process = {msg['id'] for msg in sorted_messages}
+            print(f"No download limit applied. Processing all {len(final_message_ids_to_process)} messages for media.")
+
+        # --- Media Processing Section ---
+        total_media_items = 0 # Initialize total media items counter
+        media_paths_map = {} # Initialize media paths map
+        folder_name = None # Initialize folder name
+
+        if reaction_filter and final_message_ids_to_process:
             # --- Start Media Download and Link Logging ---
             download_dir = "downloads"
             timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
-            # Sanitize chat_identifier for use in folder name
-            # Use sanitized chat title if available, otherwise use sanitized chat_identifier
-            folder_name = f"{sanitize_filename(getattr(entity, 'title', str(chat_identifier)))}_{timestamp}" # Modified line
-            folder_path = os.path.join(download_dir, folder_name) # Path relative to CWD, will create in CWD/downloads
-
-            # Ensure the downloads directory exists and the specific search subfolder
+            folder_name = f"{sanitize_filename(getattr(entity, 'title', str(chat_identifier)))}_{timestamp}"
+            folder_path = os.path.join(download_dir, folder_name)
             os.makedirs(folder_path, exist_ok=True)
 
             large_media_links = []
             allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'avi', 'mkv']
             size_limit_bytes = 250 * 1024 * 1024
 
-            print(f"Preparing to process top {total_media_to_process} messages for media download...")
+            # Fetch message objects for the final list of messages to process
+            message_ids_to_fetch_media = list(final_message_ids_to_process)
+            fetched_message_objects = {}
+            if message_ids_to_fetch_media:
+                print(f"Fetching {len(message_ids_to_fetch_media)} message objects for media download...")
+                # Fetch in smaller batches to potentially reduce errors and improve logging
+                batch_size = 100
+                for i in range(0, len(message_ids_to_fetch_media), batch_size):
+                    batch_ids = message_ids_to_fetch_media[i:i + batch_size]
+                    try:
+                        messages_list = await client.get_messages(entity, ids=batch_ids)
+                        if messages_list:
+                            fetched_count_in_batch = 0
+                            for msg_obj in messages_list:
+                                if msg_obj:
+                                    fetched_message_objects[msg_obj.id] = msg_obj
+                                    fetched_count_in_batch += 1
+                                else:
+                                    print(f"Warning: Received None for a message object in batch fetch (Batch {i//batch_size + 1}).")
+                            print(f"Fetched batch {i//batch_size + 1} ({fetched_count_in_batch} valid objects). Total fetched so far: {len(fetched_message_objects)}")
+                        else:
+                             print(f"Warning: Received empty list for message batch {i//batch_size + 1}.")
+                    except Exception as fetch_err:
+                        print(f"Error fetching message batch {i//batch_size + 1} (IDs: {batch_ids}): {fetch_err}. Some media might not be downloaded.")
+                print(f"Finished fetching. Total successfully fetched objects: {len(fetched_message_objects)} out of {len(message_ids_to_fetch_media)} requested.")
+
+            # Identify groups and media posts from the fetched objects
+            message_groups = {} # Stores {group_key: [media_post_objects]}
+            processed_ids_for_grouping = set() # Track IDs processed during grouping
+            
+            print("Identifying media groups...")
+            for message_id in message_ids_to_fetch_media: # Iterate based on the final list determined by the limit
+                if message_id not in fetched_message_objects:
+                    print(f"Skipping message ID {message_id} for grouping: Not fetched.")
+                    continue
+                
+                if message_id in processed_ids_for_grouping:
+                    # Already added as part of another group found via _get_media_posts_in_group
+                    continue
+
+                message_obj = fetched_message_objects[message_id]
+                
+                try:
+                    # Use _get_media_posts_in_group to find all related media posts
+                    # This function handles both grouped and single media messages
+                    media_posts = await _get_media_posts_in_group(client, entity, message_obj)
+                    
+                    if media_posts:
+                        # Determine the group key (grouped_id or message_id for single)
+                        # Use the ID of the first post in the sorted list as the key for consistency
+                        group_key = media_posts[0].id if not getattr(message_obj, 'grouped_id', None) else getattr(message_obj, 'grouped_id')
+
+                        # Store the actual media post objects found
+                        if group_key not in message_groups:
+                             message_groups[group_key] = media_posts
+                             print(f"  Group {group_key}: Identified {len(media_posts)} media items.")
+                             # Mark all posts found by _get_media_posts_in_group as processed for grouping
+                             for post in media_posts:
+                                 processed_ids_for_grouping.add(post.id)
+                        # else: Group already identified by another member message
+                    else:
+                        # Original message was in the list but _get_media_posts_in_group found nothing (e.g., no media)
+                        print(f"  Message {message_id}: No downloadable media found by _get_media_posts_in_group.")
+                        processed_ids_for_grouping.add(message_id) # Mark as processed
+
+                except Exception as e:
+                    print(f"Error processing message {message_id} for grouping: {e}")
+                    processed_ids_for_grouping.add(message_id) # Mark as processed to avoid retries
+
+            total_media_items = sum(len(msgs) for msgs in message_groups.values())
+            print(f"Identified {len(message_groups)} groups/messages with a total of {total_media_items} media items to download.")
+            # Update media phase progress with the actual count of media items
+            progress_queue.put({'type': 'media_phase', 'total_media': total_media_items})
 
             download_tasks = []
-            media_processed_count = 0 # Initialize counter for progress updates
+            media_paths_map = {} # Map message ID to list of media paths
 
-            # Fetch message objects first (can also be concurrent, but let's keep it simple for now)
-            message_ids_to_process = [msg_data['id'] for msg_data in sorted_messages[:total_media_to_process]]
-            fetched_message_objects = {}
-            if message_ids_to_process:
-                try:
-                    # Fetch messages in batches if needed, but Telethon handles lists well
-                    messages_list = await client.get_messages(entity, ids=message_ids_to_process)
-                    if messages_list:
-                        for msg_obj in messages_list:
-                            if msg_obj: # Ensure message object is not None
-                               fetched_message_objects[msg_obj.id] = msg_obj
-                except Exception as fetch_err:
-                    print(f"Error fetching message batch: {fetch_err}")
-                    # Decide how to handle partial fetch failure, maybe proceed with fetched ones
+            # Iterate through identified message groups and create download tasks
+            for group_key, messages_in_group in message_groups.items():
+                messages_in_group.sort(key=lambda msg: msg.id) # Ensure consistent order for naming
+                message_ids_in_group = [msg.id for msg in messages_in_group]
+                
+                # Initialize map entry for all messages in this group
+                for msg_id in message_ids_in_group:
+                     if msg_id not in media_paths_map: media_paths_map[msg_id] = []
 
-            print(f"Fetched {len(fetched_message_objects)} message objects out of {total_media_to_process}.")
+                for i, message in enumerate(messages_in_group):
+                    message_id = message.id
+                    try:
+                        is_supported_media, file_extension, file_size = detect_media_type_and_size(message)
 
-            # Create download tasks for fetched messages
-            for message_id in message_ids_to_process:
-                message = fetched_message_objects.get(message_id)
-                if message:
-                     # Create a task for each message download attempt
-                     task = asyncio.create_task(
-                         download_single_media(
-                             client, message, folder_path, message_id,
-                             progress_queue, total_media_to_process, # Pass queue and total
-                             allowed_extensions, size_limit_bytes, large_media_links, entity
-                         )
-                     )
-                     download_tasks.append(task)
-                else:
-                     print(f"Skipping message ID {message_id} as it could not be fetched.")
-                     # Increment processed count even if skipped/failed fetch
-                     media_processed_count += 1
-                     # Progress update for skipped/failed fetch messages is handled here
-                     progress_queue.put({'type': 'media_progress', 'processed_count': media_processed_count, 'total_media': total_media_to_process})
+                        if is_supported_media:
+                            if file_size is not None and file_size > size_limit_bytes:
+                                link = build_message_link(entity, message_id)
+                                large_media_links.append(f"Message ID: {message_id}, Link: {link}, Size: {file_size} bytes")
+                                print(f"Skipping large media for message {message_id} ({file_size} bytes).")
+                            else:
+                                print(f"Creating download task for media {i+1}/{len(messages_in_group)} in group {group_key} (Msg ID: {message_id})...")
+                                if not file_extension: file_extension = 'bin'
+                                # Use the ID of the *first* message in the sorted group as the base filename prefix
+                                group_base_id = messages_in_group[0].id
+                                file_name = f"{group_base_id}_{i+1}.{file_extension}"
+                                full_file_path = os.path.join(folder_path, file_name)
+                                relative_path = os.path.join(folder_name, file_name).replace('\\', '/')
 
+                                task = asyncio.create_task(
+                                    client.download_media(
+                                        message,
+                                        file=full_file_path,
+                                        progress_callback=lambda current, total, mid=message_id: download_progress_callback(current, total, mid)
+                                    )
+                                )
+                                # Store task, the list of all message IDs in this group, and the relative path
+                                download_tasks.append((task, message_ids_in_group, relative_path))
+                        else:
+                            # Log only if the message object actually has media attached
+                            if message.media:
+                                 print(f"Message {message_id} has unsupported media type.")
+
+                    except Exception as e:
+                        print(f"Error processing message {message_id} for download task creation: {e}")
 
             # Run download tasks concurrently
             if download_tasks:
                 print(f"Starting concurrent download of {len(download_tasks)} media items...")
-                # Use asyncio.gather to run tasks concurrently, return_exceptions=True to handle errors
-                results = await asyncio.gather(*download_tasks, return_exceptions=True)
+                results = await asyncio.gather(*[task for task, _, _ in download_tasks], return_exceptions=True)
 
-                # Process results after all tasks are finished
-                successful_downloads = 0
-                failed_downloads = 0
+                successful_downloads = 0; failed_downloads = 0
+                temp_group_paths = {} # Store paths per group {tuple(sorted_ids): [paths]}
+
                 for i, result in enumerate(results):
+                    task, message_ids_in_group, relative_path = download_tasks[i]
+                    # Use a consistent identifier for the group (sorted tuple of IDs)
+                    group_identifier = tuple(sorted(message_ids_in_group))
+
+                    if group_identifier not in temp_group_paths: temp_group_paths[group_identifier] = []
+
                     if isinstance(result, Exception):
-                        # Log the exception for the specific task (optional: get message_id if needed)
-                        print(f"Download task {i+1} failed: {result}")
+                        print(f"Download task for media {relative_path} failed: {result}")
                         failed_downloads += 1
-                    elif result is True: # Our helper function returns True if processed successfully
-                        successful_downloads += 1
-                    # Note: If download_single_media returns False or None, it means it didn't process,
-                    # but we counted skipped/failed fetches earlier. Here we focus on gather results.
+                    else:
+                        # Ensure result is not None before proceeding (download_media returns path on success)
+                        if result is not None:
+                             print(f"Download task for media {relative_path} completed.")
+                             successful_downloads += 1
+                             temp_group_paths[group_identifier].append(relative_path)
+                        else:
+                             # Handle cases where download_media might return None without exception
+                             print(f"Download task for media {relative_path} returned None (likely skipped or internal issue).")
+                             failed_downloads += 1 # Count as failed/skipped
 
-                # Update the total processed count based on gather results + previously skipped/failed fetches
-                # The initial media_processed_count already accounts for skipped/failed fetches.
-                # We add the count of successful downloads from gather.
-                # Note: A task failing in gather still means it was 'processed' in terms of the progress bar.
-                final_processed_count = media_processed_count + len(results) # Count all attempted tasks from gather
+                    # Update progress based on total media items identified earlier
+                    progress_queue.put({'type': 'media_progress', 'processed_count': successful_downloads + failed_downloads, 'total_media': total_media_items})
 
-                print(f"Finished processing media. Successful Downloads: {successful_downloads}, Failed/Skipped: {failed_downloads + media_processed_count}, Total Attempted: {len(results) + media_processed_count}")
+                # Assign the final list of paths to all messages in the group map
+                for group_identifier, paths in temp_group_paths.items():
+                    paths.sort() # Ensure consistent order of paths
+                    for msg_id in group_identifier: # Iterate through all message IDs associated with this group
+                         media_paths_map[msg_id] = paths # Assign the complete list of paths for the group
 
-                # Send final media progress update after gather completes
-                final_processed_count = min(final_processed_count, total_media_to_process) # Cap at total
-                progress_queue.put({'type': 'media_progress', 'processed_count': final_processed_count, 'total_media': total_media_to_process})
-
+                print(f"Finished processing media. Successful: {successful_downloads}, Failed/Skipped: {failed_downloads}, Total Tasks: {len(download_tasks)}")
+                final_processed_count = successful_downloads + failed_downloads
+                # Ensure final progress update reflects total items attempted
+                progress_queue.put({'type': 'media_progress', 'processed_count': final_processed_count, 'total_media': total_media_items})
             else:
                 print("No media download tasks were created.")
-                # Ensure progress completes even if no tasks run
-                progress_queue.put({'type': 'media_progress', 'processed_count': media_processed_count, 'total_media': total_media_to_process})
+                # Send progress updates even if no tasks, using total_media_items
+                progress_queue.put({'type': 'media_phase', 'total_media': total_media_items}) # Use actual count
+                progress_queue.put({'type': 'media_progress', 'processed_count': 0, 'total_media': total_media_items})
 
+            # Associate the collected media paths with ALL messages in the original sorted_messages list
+            # This ensures even messages outside the limit but part of a selected group get the paths
+            for msg_data in sorted_messages:
+                message_id = msg_data['id']
+                # Assign paths if found in the map, otherwise empty list
+                msg_data['media_paths'] = media_paths_map.get(message_id, [])
 
             if large_media_links:
-                # Save links file in the specific search subfolder
                 links_file_path = os.path.join(folder_path, "large_media_links.txt")
                 with open(links_file_path, "w") as f:
-                    for link_info in large_media_links:
-                        f.write(link_info + "\n")
+                    for link_info in large_media_links: f.write(link_info + "\n")
                 print(f"Large media links saved to {links_file_path}")
 
-            print("Media download and link logging complete for top messages.")
+            print("Media download and link logging complete.")
             # --- End Media Download and Link Logging ---
         else:
-            print("Reaction filter is off. Skipping media download.")
-            # Send a media phase complete message even if skipping download
-            progress_queue.put({'type': 'media_phase', 'total_media': 0}) # Indicate 0 media to process
+            # Reaction filter is off or no messages to process
+            print("Reaction filter is off or no messages selected for media processing. Skipping media download.")
+            progress_queue.put({'type': 'media_phase', 'total_media': 0})
+            progress_queue.put({'type': 'media_progress', 'processed_count': 0, 'total_media': 0})
+            # Ensure media_paths is initialized for all messages if skipping
+            for msg_data in sorted_messages:
+                msg_data['media_paths'] = []
+
 
         # Send complete message after all processing is done
         progress_queue.put({'type': 'complete'})
 
-        task_data['results'] = sorted_messages # Keep the sorted results for the original purpose
-        task_data['entity'] = entity  # Store entity info for link building
+        # Return the original sorted_messages list, now potentially annotated with media_paths
+        task_data['results'] = sorted_messages
+        task_data['entity'] = entity
         task_data['scanned_count'] = scanned
-        # Store the download folder path if downloads were attempted
-        # Store only the subfolder name, not the full 'downloads/' path
-        task_data['download_folder_path'] = folder_name if reaction_filter and total_media_to_process > 0 else None
-        print(f"Results saved: {len(sorted_messages)} messages. Download path: {task_data['download_folder_path']}")
+        # Update folder_name based on whether downloads actually happened
+        task_data['download_folder_path'] = folder_name if reaction_filter and total_media_items > 0 else None
+        print(f"Results prepared: {len(sorted_messages)} messages. Download path: {task_data['download_folder_path']}")
 
 
     except Exception as e:
@@ -353,6 +502,7 @@ async def fetch_reaction_stats_async(chat_identifier, progress_queue, task_data,
             await client.disconnect()
         print("Fetch task completed.")
 
+    # Return the original full list of messages found, not just the ones processed for media
     return entity, messages, scanned, error_message
 
 def build_message_link(chat, msg_id):
