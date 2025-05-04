@@ -8,17 +8,28 @@ def init_db():
     """Initialize database and create necessary tables."""
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
+    
+    # Check if the download_folder_path column exists
+    cursor.execute("PRAGMA table_info(search_history)")
+    columns = [col[1] for col in cursor.fetchall()]
+    
+    if 'download_folder_path' not in columns:
+        print("Adding download_folder_path column to search_history table.")
+        cursor.execute("ALTER TABLE search_history ADD COLUMN download_folder_path TEXT")
+        conn.commit()
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS search_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            chat_identifier TEXT NOT NULL, -- Original input
+            chat_identifier TEXT NOT NULL,
             chat_title TEXT,
-            chat_username TEXT, -- Store username if available
-            chat_numeric_id INTEGER, -- Store numeric ID if available
-            period_days INTEGER, -- NULL for 'all'
+            chat_username TEXT,
+            chat_numeric_id INTEGER,
+            period_days INTEGER,
             messages_found INTEGER NOT NULL,
-            scanned_count INTEGER NOT NULL
+            scanned_count INTEGER NOT NULL,
+            download_folder_path TEXT
         )
     ''')
     cursor.execute('''
@@ -36,7 +47,7 @@ def init_db():
     conn.close()
     print("Database initialized.")
 
-def save_search_history(original_identifier, entity, period_days, message_count, scanned_count):
+def save_search_history(original_identifier, entity, period_days, message_count, scanned_count, download_folder_path=None):
     """Save search history to database and return history_id."""
     try:
         conn = sqlite3.connect(DATABASE)
@@ -48,10 +59,10 @@ def save_search_history(original_identifier, entity, period_days, message_count,
 
         # Add to history table
         cursor.execute('''
-            INSERT INTO search_history (chat_identifier, chat_title, chat_username, chat_numeric_id, period_days, messages_found, scanned_count)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (str(original_identifier), chat_title, chat_username, chat_numeric_id, period_days, message_count, scanned_count))
-        
+            INSERT INTO search_history (chat_identifier, chat_title, chat_username, chat_numeric_id, period_days, messages_found, scanned_count, download_folder_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (str(original_identifier), chat_title, chat_username, chat_numeric_id, period_days, message_count, scanned_count, download_folder_path))
+
         history_id = cursor.lastrowid  # Get ID of inserted record
         conn.commit()
         

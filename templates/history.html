@@ -39,6 +39,8 @@
             max-width: 1100px;
             margin: 0 auto;
             padding: 2rem;
+            min-height: calc(100vh - 120px); /* Ensure container takes up at least the full viewport height */
+            position: relative; /* Needed for absolute positioning of copyright */
         }
         
         .header {
@@ -297,12 +299,20 @@
         
         /* Copyright */
         .copyright {
-            position: absolute;
+            position: fixed; /* Changed to fixed */
             bottom: 1rem;
             right: 2rem;
             font-size: 0.8rem;
             color: var(--paynes-gray);
             text-align: right;
+        }
+
+        /* Ensure container has padding to avoid overlap */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+            padding-bottom: 4rem; /* Add padding to the bottom */
         }
     </style>
 </head>

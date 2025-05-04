@@ -287,12 +287,32 @@
         
         /* Copyright */
         .copyright {
-            position: absolute;
+            position: fixed;
             bottom: 1rem;
             right: 2rem;
             font-size: 0.8rem;
             color: var(--paynes-gray);
             text-align: right;
+        }
+        
+        /* Copyright */
+        .copyright {
+            position: fixed;
+            bottom: 1rem;
+            right: 2rem;
+            font-size: 0.8rem;
+            color: var(--paynes-gray);
+            text-align: right;
+        }
+
+        /* Ensure container has padding to avoid overlap */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            min-height: calc(100vh - 120px);
+            padding-bottom: 4rem;
         }
         
         /* Responsive */
@@ -369,7 +389,23 @@
                                 <span class="reaction-count">{{ msg['reactions'] }}</span>
                             </div>
                             <div class="result-content">
-                                <p class="message-preview">{{ msg['preview'] }}...</p>
+                                {# Only show preview if it's not the placeholder #}
+                                {% if msg['preview'] != '[Media/Empty]' %}
+                                    <p class="message-preview">{{ msg['preview'] }}...</p>
+                                {% endif %}
+                                {# Display downloaded media if available #}
+                                {% if msg.media_url %}
+                                    <div class="downloaded-media" style="margin-top: 1rem;">
+                                        {% if msg.media_type == 'image' %}
+                                            <img src="{{ msg.media_url }}" alt="{{ t('downloaded_image_alt', lang) }}" style="max-width: 100%; height: auto; border-radius: 8px;">
+                                        {% elif msg.media_type == 'video' %}
+                                            <video controls width="100%" style="max-width: 100%; border-radius: 8px;">
+                                                <source src="{{ msg.media_url }}" type="video/mp4"> {# Adjust type if needed for other formats #}
+                                                {{ t('video_not_supported', lang) }}
+                                            </video>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
                             </div>
                             <div class="result-footer">
                                 <a href="{{ msg['link'] }}" target="_blank" class="btn">{{ t('view_message', lang) }}</a>

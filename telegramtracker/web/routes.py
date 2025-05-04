@@ -1,6 +1,7 @@
 import threading
 import queue
-from flask import render_template, request, redirect, url_for, Response, jsonify, session, flash, make_response
+import os
+from flask import render_template, request, redirect, url_for, Response, jsonify, session, flash, make_response, send_from_directory
 
 from telegramtracker.core import database
 from telegramtracker.services.telegram_client import run_fetch_in_background, API_ID, API_HASH, build_message_link
@@ -159,7 +160,7 @@ def register_routes(app):
                 except Exception as e:
                     # Log error during streaming
                     print(f"Error in SSE stream: {e}")
-                    yield f"data: {{\"type\": \"error\", \"message\": \"SSE stream error: {e}\"}}\n\n"
+                    yield f"data: {{\"type\": \"error\", \"message\": \"{task_data['error']}\"}}\n\n"
                     break
 
             # Final check after loop exit (task completed)
@@ -217,10 +218,53 @@ def register_routes(app):
             else:  # Page 1 is requested but no results (shouldn't happen)
                 paginated_results = []
         else:
-            paginated_results = all_results[start_index:end_index]
+            paginated_results = [dict(row) for row in all_results[start_index:end_index]] # Convert to dicts for modification
 
         # Add links to results
         entity_info = task_data['entity']
+        
+        # --- Check for downloaded media for the current results page ---
+        # Store the path *before* resetting task_data
+        current_download_folder_path = task_data.get('download_folder_path') 
+        if current_download_folder_path:
+            base_download_dir = os.path.abspath('downloads')
+            full_folder_path = os.path.join(base_download_dir, current_download_folder_path)
+
+            if os.path.isdir(full_folder_path):
+                for result_dict in paginated_results: # Iterate through the already paginated dicts
+                    message_id = result_dict['id'] # Use 'id' key from the original results
+                    media_found = False
+                    for ext in ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'avi', 'mkv']:
+                        potential_filename = f"{message_id}.{ext}"
+                        potential_filepath = os.path.join(full_folder_path, potential_filename)
+
+                        if os.path.exists(potential_filepath):
+                            media_subpath = os.path.join(current_download_folder_path, potential_filename).replace('\\', '/')
+                            result_dict['media_url'] = url_for('serve_downloaded_file', subpath=media_subpath)
+                            if ext in ['jpg', 'jpeg', 'png', 'gif']:
+                                result_dict['media_type'] = 'image'
+                            elif ext in ['mp4', 'mov', 'avi', 'mkv']:
+                                result_dict['media_type'] = 'video'
+                            else:
+                                result_dict['media_type'] = 'other'
+                            media_found = True
+                            break
+                    
+                    if not media_found:
+                        result_dict['media_url'] = None
+                        result_dict['media_type'] = None
+            else:
+                 # Folder doesn't exist, ensure media keys are None
+                 print(f"Download folder not found for immediate results: {full_folder_path}")
+                 for result_dict in paginated_results:
+                     result_dict['media_url'] = None
+                     result_dict['media_type'] = None
+        else:
+             # No download path, ensure media keys are None
+             for result_dict in paginated_results:
+                 result_dict['media_url'] = None
+                 result_dict['media_type'] = None
+        # --- End Check for downloaded media ---
         
         # Calculate pagination info
         total_pages = min(max_pages, (total_items + per_page - 1) // per_page)
@@ -235,9 +279,10 @@ def register_routes(app):
                     task_data['entity'],
                     task_data['original_period'],
                     len(all_results),
-                    task_data.get('scanned_count', 0)
+                    task_data.get('scanned_count', 0),
+                    task_data.get('download_folder_path') # Pass the download folder path
                 )
-                
+
                 # Save individual results
                 if history_id:
                     # Create a function to build links for each message
@@ -248,13 +293,14 @@ def register_routes(app):
             except Exception as e:
                 print(f"Error saving to history: {e}")
                 # Continue showing results even if saving fails
-
-        # Reset task_data after processing results to prevent re-saving
+        
+        # Reset task_data after history saving (if it happened) and media check
         task_data['results'] = None
         task_data['entity'] = None
         task_data['original_identifier'] = None
         task_data['original_period'] = None
-        
+        task_data['download_folder_path'] = None  # Also clear download path
+
         return render_template(
             'results.html',
             results=paginated_results,
@@ -292,19 +338,74 @@ def register_routes(app):
             # History entry not found
             return redirect(url_for('history'))
             
-        results = database.get_history_results(history_id)
+        results_raw = database.get_history_results(history_id)
         
+        # Check for downloaded media
+        download_folder_path = history_entry['download_folder_path']
+        processed_results = []
+        if download_folder_path:
+            # Construct the absolute base path for downloads
+            # Assumes 'downloads' is in the CWD where Flask is run
+            base_download_dir = os.path.abspath('downloads')
+            full_folder_path = os.path.join(base_download_dir, download_folder_path) # Use the relative path from DB
+
+            if os.path.isdir(full_folder_path): # Check if the specific download folder exists
+                for row in results_raw:
+                    result_dict = dict(row) # Convert sqlite3.Row to dict
+                    message_id = result_dict['message_id']
+                    media_found = False
+                    for ext in ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'avi', 'mkv']: # Common extensions
+                        potential_filename = f"{message_id}.{ext}"
+                        potential_filepath = os.path.join(full_folder_path, potential_filename)
+                        
+                        # --- Debug Print ---
+                        print(f"Checking for file: {potential_filepath}") 
+                        
+                        if os.path.exists(potential_filepath):
+                            # --- Debug Print ---
+                            print(f"Found file: {potential_filepath}")
+                            
+                            # Construct web-accessible URL
+                            # Use the relative path stored in DB for the URL
+                            media_subpath = os.path.join(download_folder_path, potential_filename).replace('\\', '/')
+                            result_dict['media_url'] = url_for('serve_downloaded_file', subpath=media_subpath)
+                            
+                            # --- Debug Print ---
+                            print(f"Generated URL: {result_dict['media_url']}")
+                            
+                            if ext in ['jpg', 'jpeg', 'png', 'gif']:
+                                result_dict['media_type'] = 'image'
+                            elif ext in ['mp4', 'mov', 'avi', 'mkv']: # Add other video types if needed
+                                result_dict['media_type'] = 'video'
+                            else:
+                                result_dict['media_type'] = 'other' # Should not happen based on loop
+                            media_found = True
+                            break # Found one, stop checking extensions for this message
+                    
+                    if not media_found:
+                        result_dict['media_url'] = None
+                        result_dict['media_type'] = None
+                        
+                    processed_results.append(result_dict)
+            else:
+                 # Folder doesn't exist, process results without media
+                 print(f"Download folder not found: {full_folder_path}")
+                 processed_results = [dict(row) for row in results_raw]
+        else:
+            # No download path stored, process results without media
+            processed_results = [dict(row) for row in results_raw]
+
         # Paginate results
         page = request.args.get('page', 1, type=int)
         per_page = 24
         
-        total_items = len(results)
+        total_items = len(processed_results)
         total_pages = (total_items + per_page - 1) // per_page
         
         start_index = (page - 1) * per_page
         end_index = min(start_index + per_page, total_items)
         
-        paginated_results = results[start_index:end_index] if start_index < total_items else []
+        paginated_results = processed_results[start_index:end_index] if start_index < total_items else []
         
         return render_template(
             'history_results.html',
@@ -317,7 +418,23 @@ def register_routes(app):
             total_pages=total_pages,
             total_items=total_items
         )
-    
+
+    # Route to serve downloaded files
+    @app.route('/downloads/<path:subpath>')
+    def serve_downloaded_file(subpath):
+        """Serves files from the downloads directory."""
+        # Construct the absolute path to the downloads directory
+        # Assumes 'downloads' is in the CWD where Flask is run
+        download_dir = os.path.abspath('downloads')
+        # Prevent accessing files outside the download_dir using safe_join (implicitly handled by send_from_directory)
+        print(f"Attempting to serve: {subpath} from {download_dir}")
+        try:
+            # send_from_directory handles security (path traversal)
+            return send_from_directory(download_dir, subpath)
+        except Exception as e:
+            print(f"Error serving file {subpath}: {e}")
+            return "File not found", 404
+
     @app.route('/delete_history/<int:history_id>', methods=['POST'])
     def delete_history(history_id):
         """Deletes a history entry and its results."""
