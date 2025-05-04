@@ -345,15 +345,22 @@
                                     <p class="message-preview">{{ message['message_preview'] }}</p>
                                 {% endif %}
                                 {# Display downloaded media if available #}
-                                {% if message.media_url %}
-                                    <div class="downloaded-media" style="margin-top: 1rem;">
-                                        {% if message.media_type == 'image' %}
-                                            <img src="{{ message.media_url }}" alt="{{ t('downloaded_image_alt', lang) }}" style="max-width: 100%; height: auto; border-radius: 8px;">
-                                        {% elif message.media_type == 'video' %}
+                                {% if message.media_paths %}
+                                    <div class="media-container" style="position: relative; margin-top: 1rem; text-align: center;" data-media-paths="{{ message.media_paths | tojson | forceescape }}">
+                                        {% set first_media_path = message.media_paths[0] %}
+                                        {% set file_extension = first_media_path.split('.')[-1].lower() %}
+                                        {% if file_extension in ['jpg', 'jpeg', 'png', 'gif'] %}
+                                            <img src="{{ url_for('serve_downloaded_file', subpath=first_media_path) }}" alt="{{ t('downloaded_image_alt', lang) }}" style="max-width: 100%; height: auto; border-radius: 8px;">
+                                        {% elif file_extension in ['mp4', 'mov', 'avi', 'mkv'] %}
                                             <video controls width="100%" style="max-width: 100%; border-radius: 8px;">
-                                                <source src="{{ message.media_url }}" type="video/mp4"> {# Adjust type if needed for other formats #}
+                                                <source src="{{ url_for('serve_downloaded_file', subpath=first_media_path) }}" type="video/mp4"> {# Assuming mp4 for now, might need more sophisticated type detection #}
                                                 {{ t('video_not_supported', lang) }}
                                             </video>
+                                        {% endif %}
+                                        
+                                        {% if message.media_paths | length > 1 %}
+                                            <button class="media-nav-arrow left-arrow" style="position: absolute; top: 50%; left: 10px; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; z-index: 10;"><</button>
+                                            <button class="media-nav-arrow right-arrow" style="position: absolute; top: 50%; right: 10px; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; z-index: 10;">></button>
                                         {% endif %}
                                     </div>
                                 {% endif %}
@@ -385,5 +392,6 @@
             window.location.href = currentUrl.toString();
         }
     </script>
+    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
 </body>
 </html>

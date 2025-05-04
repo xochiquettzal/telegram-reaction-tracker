@@ -257,15 +257,16 @@
                 <div class="form-group">
                     <label for="period">{{ t('period_label', lang) }}</label>
                     <select id="period" name="period" class="form-control">
+                        <option value="1">{{ t('period_1', lang) }}</option>
                         <option value="7">{{ t('period_7', lang) }}</option>
                         <option value="30">{{ t('period_30', lang) }}</option>
                         <option value="90">{{ t('period_90', lang) }}</option>
                         <option value="180">{{ t('period_180', lang) }}</option>
-                        <option value="all" selected>{{ t('period_all', lang) }}</option>
+                        <option value="all">{{ t('period_all', lang) }}</option>
                     </select>
                 </div>
-
-                <div class="fetch-settings-section">
+                
+                <div class="fetch-settings">
                     <h3>{{ t('fetch_settings', lang) }}</h3>
                     <div class="form-group-checkbox">
                         <input type="checkbox" id="reaction_filter" name="reaction_filter" value="true">

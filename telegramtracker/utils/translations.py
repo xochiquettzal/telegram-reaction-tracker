@@ -70,6 +70,10 @@ translations = {
         'tr': 'Tüm Zamanlar',
         'en': 'All Time'
     },
+    'period_1': { # New key for 1 day
+        'tr': 'Son 24 Saat',
+        'en': 'Last 24 Hours'
+    },
     'fetch_button': {
         'tr': 'Tepkileri Getir',
         'en': 'Fetch Reactions'

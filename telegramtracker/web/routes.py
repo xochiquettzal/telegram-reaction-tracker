@@ -98,7 +98,7 @@ def register_routes(app):
             print(f"'{chat_input}' processed as username: {processed_identifier}")
 
         # Process time period selection
-        mapping = {'7': 7, '30': 30, '90': 90, '180': 180, 'all': None}
+        mapping = {'7': 7, '30': 30, '90': 90, '180': 180, 'all': None, '1': 1}
         period = mapping.get(period_choice)
 
         # Store original inputs for database saving
@@ -223,52 +223,27 @@ def register_routes(app):
         # Add links to results
         entity_info = task_data['entity']
         
-        # --- Check for downloaded media for the current results page ---
-        # Store the path *before* resetting task_data
-        current_download_folder_path = task_data.get('download_folder_path') 
-        if current_download_folder_path:
-            base_download_dir = os.path.abspath('downloads')
-            full_folder_path = os.path.join(base_download_dir, current_download_folder_path)
-
-            if os.path.isdir(full_folder_path):
-                for result_dict in paginated_results: # Iterate through the already paginated dicts
-                    message_id = result_dict['id'] # Use 'id' key from the original results
-                    media_found = False
-                    for ext in ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'avi', 'mkv']:
-                        potential_filename = f"{message_id}.{ext}"
-                        potential_filepath = os.path.join(full_folder_path, potential_filename)
-
-                        if os.path.exists(potential_filepath):
-                            media_subpath = os.path.join(current_download_folder_path, potential_filename).replace('\\', '/')
-                            result_dict['media_url'] = url_for('serve_downloaded_file', subpath=media_subpath)
-                            if ext in ['jpg', 'jpeg', 'png', 'gif']:
-                                result_dict['media_type'] = 'image'
-                            elif ext in ['mp4', 'mov', 'avi', 'mkv']:
-                                result_dict['media_type'] = 'video'
-                            else:
-                                result_dict['media_type'] = 'other'
-                            media_found = True
-                            break
-                    
-                    if not media_found:
-                        result_dict['media_url'] = None
-                        result_dict['media_type'] = None
-            else:
-                 # Folder doesn't exist, ensure media keys are None
-                 print(f"Download folder not found for immediate results: {full_folder_path}")
-                 for result_dict in paginated_results:
-                     result_dict['media_url'] = None
-                     result_dict['media_type'] = None
-        else:
-             # No download path, ensure media keys are None
-             for result_dict in paginated_results:
-                 result_dict['media_url'] = None
-                 result_dict['media_type'] = None
-        # --- End Check for downloaded media ---
-        
         # Calculate pagination info
-        total_pages = min(max_pages, (total_items + per_page - 1) // per_page)
-        
+        page = request.args.get('page', 1, type=int)
+        per_page = 10
+        max_pages = 10  # Limit to 10 pages as requested
+
+        all_results = task_data['results']
+        total_items = len(all_results)
+        start_index = (page - 1) * per_page
+        end_index = start_index + per_page
+
+        # Ensure we don't exceed total items or 10 page limit
+        if start_index >= total_items or page > max_pages:
+            # Handle invalid page number - show page 1 or error?
+            # For simplicity, let's redirect to page 1
+            if page != 1:
+                return redirect(url_for('results', page=1))
+            else:  # Page 1 is requested but no results (shouldn't happen)
+                paginated_results = []
+        else:
+            paginated_results = all_results[start_index:end_index] # paginated_results already contains media_paths
+
         # Save to history if this is the first view of results (page 1)
         history_id = None
         if page == 1 and task_data.get('original_identifier') and not request.args.get('no_save'):
@@ -287,29 +262,30 @@ def register_routes(app):
                 if history_id:
                     # Create a function to build links for each message
                     def build_link(msg_id):
-                        return build_message_link(entity_info, msg_id)
-                        
+                        return build_message_link(task_data['entity'], msg_id) # Use entity from task_data
+
+                    # Pass the results which now include media_paths
                     database.save_search_results(history_id, all_results, build_link)
             except Exception as e:
                 print(f"Error saving to history: {e}")
                 # Continue showing results even if saving fails
         
-        # Reset task_data after history saving (if it happened) and media check
+        # Reset task_data after history saving (if it happened)
         task_data['results'] = None
         task_data['entity'] = None
         task_data['original_identifier'] = None
         task_data['original_period'] = None
-        task_data['download_folder_path'] = None  # Also clear download path
+        task_data['download_folder_path'] = None
 
         return render_template(
             'results.html',
-            results=paginated_results,
-            lang=lang,
+            results=paginated_results, # Pass results with media_paths
+            lang=session.get('lang', 'tr'),
             t=get_text,
             languages=LANGUAGES,
-            build_link=lambda msg_id: build_message_link(entity_info, msg_id),
+            build_link=lambda msg_id: build_message_link(task_data.get('entity'), msg_id), # Use entity from task_data if available
             page=page,
-            total_pages=total_pages,
+            total_pages=min(max_pages, (total_items + per_page - 1) // per_page), # Recalculate total_pages
             total_items=total_items,
             history_id=history_id
         )
@@ -338,62 +314,8 @@ def register_routes(app):
             # History entry not found
             return redirect(url_for('history'))
             
-        results_raw = database.get_history_results(history_id)
-        
-        # Check for downloaded media
-        download_folder_path = history_entry['download_folder_path']
-        processed_results = []
-        if download_folder_path:
-            # Construct the absolute base path for downloads
-            # Assumes 'downloads' is in the CWD where Flask is run
-            base_download_dir = os.path.abspath('downloads')
-            full_folder_path = os.path.join(base_download_dir, download_folder_path) # Use the relative path from DB
-
-            if os.path.isdir(full_folder_path): # Check if the specific download folder exists
-                for row in results_raw:
-                    result_dict = dict(row) # Convert sqlite3.Row to dict
-                    message_id = result_dict['message_id']
-                    media_found = False
-                    for ext in ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'avi', 'mkv']: # Common extensions
-                        potential_filename = f"{message_id}.{ext}"
-                        potential_filepath = os.path.join(full_folder_path, potential_filename)
-                        
-                        # --- Debug Print ---
-                        print(f"Checking for file: {potential_filepath}") 
-                        
-                        if os.path.exists(potential_filepath):
-                            # --- Debug Print ---
-                            print(f"Found file: {potential_filepath}")
-                            
-                            # Construct web-accessible URL
-                            # Use the relative path stored in DB for the URL
-                            media_subpath = os.path.join(download_folder_path, potential_filename).replace('\\', '/')
-                            result_dict['media_url'] = url_for('serve_downloaded_file', subpath=media_subpath)
-                            
-                            # --- Debug Print ---
-                            print(f"Generated URL: {result_dict['media_url']}")
-                            
-                            if ext in ['jpg', 'jpeg', 'png', 'gif']:
-                                result_dict['media_type'] = 'image'
-                            elif ext in ['mp4', 'mov', 'avi', 'mkv']: # Add other video types if needed
-                                result_dict['media_type'] = 'video'
-                            else:
-                                result_dict['media_type'] = 'other' # Should not happen based on loop
-                            media_found = True
-                            break # Found one, stop checking extensions for this message
-                    
-                    if not media_found:
-                        result_dict['media_url'] = None
-                        result_dict['media_type'] = None
-                        
-                    processed_results.append(result_dict)
-            else:
-                 # Folder doesn't exist, process results without media
-                 print(f"Download folder not found: {full_folder_path}")
-                 processed_results = [dict(row) for row in results_raw]
-        else:
-            # No download path stored, process results without media
-            processed_results = [dict(row) for row in results_raw]
+        # get_history_results now returns results with media_paths
+        processed_results = database.get_history_results(history_id)
 
         # Paginate results
         page = request.args.get('page', 1, type=int)
@@ -410,7 +332,7 @@ def register_routes(app):
         return render_template(
             'history_results.html',
             history=history_entry,
-            results=paginated_results,
+            results=paginated_results, # Pass results with media_paths
             lang=lang,
             t=get_text,
             languages=LANGUAGES,
