@@ -43,6 +43,14 @@ def init_db():
             FOREIGN KEY (history_id) REFERENCES search_history (id)
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS message_media (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            result_id INTEGER NOT NULL,
+            media_path TEXT NOT NULL,
+            FOREIGN KEY (result_id) REFERENCES search_results (id) ON DELETE CASCADE
+        )
+    ''')
     conn.commit()
     conn.close()
     print("Database initialized.")
@@ -85,6 +93,7 @@ def delete_history_entries_by_ids(history_ids):
     try:
         conn = sqlite3.connect(DATABASE)
         cursor = conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON;") # Ensure FK constraints are enforced
 
         # Convert IDs to a format suitable for SQL IN clause
         # Ensure IDs are integers to prevent SQL injection
@@ -133,14 +142,26 @@ def save_search_results(history_id, messages, build_link_func):
                 link
             ))
 
-        # Batch insert
-        cursor.executemany('''
-            INSERT INTO search_results (history_id, message_id, reaction_count, message_preview, message_link)
-            VALUES (?, ?, ?, ?, ?)
-        ''', results_to_insert)
+        # Insert results one by one to get the result_id for media
+        for msg in messages:
+            link = build_link_func(msg['id'])  # Create link
+            cursor.execute('''
+                INSERT INTO search_results (history_id, message_id, reaction_count, message_preview, message_link)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (history_id, msg['id'], msg['reactions'], msg['preview'], link))
+
+            result_id = cursor.lastrowid # Get ID of the inserted search_results row
+
+            # Save media paths if available
+            if 'media_paths' in msg and msg['media_paths']:
+                media_to_insert = [(result_id, media_path) for media_path in msg['media_paths']]
+                cursor.executemany('''
+                    INSERT INTO message_media (result_id, media_path)
+                    VALUES (?, ?)
+                ''', media_to_insert)
 
         conn.commit()
-        print(f"{len(results_to_insert)} results saved to database (history_id: {history_id}).")
+        print(f"{len(messages)} results and associated media saved to database (history_id: {history_id}).")
         return True
     except Exception as e:
         print(f"Error saving results: {e}")
@@ -177,22 +198,41 @@ def get_history_results(history_id):
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT message_id, reaction_count, message_preview, message_link
-        FROM search_results
-        WHERE history_id = ?
-        ORDER BY reaction_count DESC
+        SELECT
+            sr.message_id,
+            sr.reaction_count,
+            sr.message_preview,
+            sr.message_link,
+            GROUP_CONCAT(mm.media_path) AS media_paths
+        FROM search_results sr
+        LEFT JOIN message_media mm ON sr.id = mm.result_id
+        WHERE sr.history_id = ?
+        GROUP BY sr.id
+        ORDER BY sr.reaction_count DESC
     """, (history_id,))
     results = cursor.fetchall()
+
+    # Process results to convert comma-separated media_paths string to a list
+    processed_results = []
+    for row in results:
+        result_dict = dict(row)
+        if result_dict['media_paths']:
+            result_dict['media_paths'] = result_dict['media_paths'].split(',')
+        else:
+            result_dict['media_paths'] = []
+        processed_results.append(result_dict)
+
     conn.close()
-    return results
+    return processed_results
 
 def delete_history_entry(history_id):
     """Delete a history entry and all related results."""
     try:
         conn = sqlite3.connect(DATABASE)
         cursor = conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON;") # Ensure FK constraints are enforced
         
-        # First delete related results (due to foreign key constraints)
+        # First delete related results (which should cascade to message_media)
         cursor.execute("DELETE FROM search_results WHERE history_id = ?", (history_id,))
         results_deleted = cursor.rowcount
         
