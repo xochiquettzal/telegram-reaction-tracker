@@ -156,6 +156,14 @@ p {
     list-style: none;
     padding: 0;
     margin-top: 20px;
+    /* Added Masonry styles */
+    column-count: 3; /* Adjust as needed for responsiveness */
+    column-gap: 1.5rem; /* Spacing between columns */
+}
+
+/* Ensure result items don't break across columns */
+.result-item {
+    break-inside: avoid-column;
 }
 
 .result-item {
@@ -552,7 +560,7 @@ p {
     overflow: hidden;
     background-color: #eee;
     border-radius: 8px;
-    min-height: 150px;
+    /* Removed min-height */
     transition: height 0.2s ease-in-out;
 }
 
@@ -561,6 +569,7 @@ p {
     display: block;
     width: 100%;
     height: auto;
+    object-fit: contain; /* Added to prevent cropping */
     border-radius: 8px;
 }
 

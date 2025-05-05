@@ -127,6 +127,13 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 });
 
+// Function to apply aspect ratio to a container
+function applyAspectRatio(container, width, height) {
+    if (container && width > 0 && height > 0) {
+        container.style.aspectRatio = `${width} / ${height}`;
+    }
+}
+
 // Media navigation logic for results and history pages
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.media-container').forEach(container => {
@@ -139,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const rightArrow = container.querySelector('.right-arrow');
                 if(leftArrow) leftArrow.style.display = 'none';
                 if(rightArrow) rightArrow.style.display = 'none';
-                return; 
+                return;
             }
 
             const leftArrow = container.querySelector('.left-arrow');
@@ -162,6 +169,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     newMediaElement.style.maxWidth = '100%';
                     newMediaElement.style.height = 'auto';
                     newMediaElement.style.borderRadius = '8px';
+                    // Apply aspect ratio once image is loaded
+                    newMediaElement.addEventListener('load', () => {
+                        applyAspectRatio(container, newMediaElement.naturalWidth, newMediaElement.naturalHeight);
+                    });
                 } else if (['mp4', 'mov', 'avi', 'mkv'].includes(fileExtension)) {
                     newMediaElement = document.createElement('video');
                     newMediaElement.controls = true;
@@ -176,15 +187,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     newMediaElement.appendChild(source);
                     const fallbackText = document.createTextNode('Your browser does not support the video tag.');
                     newMediaElement.appendChild(fallbackText);
+                    // Apply aspect ratio once video metadata is loaded
+                    newMediaElement.addEventListener('loadedmetadata', () => {
+                         applyAspectRatio(container, newMediaElement.videoWidth, newMediaElement.videoHeight);
+                    });
                 } else {
                     // Silently ignore unsupported types or log minimally if needed
-                    return; 
+                    return;
                 }
 
                 // Remove the old element if it exists
                 if (currentMediaElement) {
                     container.removeChild(currentMediaElement);
-                } 
+                }
 
                 // Insert the new media element before the left arrow (or as the first child if no arrows)
                 if (leftArrow) {
