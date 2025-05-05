@@ -245,3 +245,346 @@ p {
 .error-box p {
     color: #c5221f;
 }
+
+/* ============================================= */
+/* Styles moved from history_results.html <style> */
+/* ============================================= */
+
+/* League Spartan Font tanımlaması */
+@font-face {
+    font-family: 'League Spartan';
+    src: url('../fonts/leaguespartan-bold.woff2') format('woff2'), /* Adjusted path */
+         url('../fonts/leaguespartan-bold.woff') format('woff'),   /* Adjusted path */
+         url('../fonts/leaguespartan-bold.ttf') format('truetype'); /* Adjusted path */
+    font-weight: bold;
+    font-style: normal;
+}
+
+:root {
+    --uranian-blue: #a9cef4;
+    --outer-space: #36494e;
+    --black: #000000;
+    --air-superiority-blue: #7ea0b7;
+    --paynes-gray: #597081;
+}
+
+/* Overriding general body style for pages using these styles */
+.history-results-page body { /* Scoped */
+    font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, sans-serif;
+    background-color: #f7f9fc;
+    color: var(--outer-space);
+    line-height: 1.6;
+    margin: 0;
+    /* Removed padding: 20px; as .container handles padding */
+}
+
+/* Overriding general .container for history results page context */
+.history-results-page .container { /* Scoped */
+    max-width: 100%; /* Changed to full width */
+    margin: 0 auto; /* Changed from 40px auto */
+    padding: 2rem; /* Keep padding */
+    position: relative;
+    min-height: calc(100vh - 120px); /* Added min-height */
+    /* Removed text-align: center; */
+    /* Removed background-color: #ffffff; as .card handles background */
+    /* Removed border-radius: 8px; */
+    /* Removed box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); */
+    padding-bottom: 4rem; /* Added padding-bottom */
+}
+
+.history-results-page .header { /* Scoped */
+    background-color: var(--paynes-gray);
+    color: white;
+    padding: 1.5rem 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    margin-bottom: 2rem;
+}
+
+.history-results-page .header-content { /* Scoped */
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-results-page .header h1 { /* Scoped */
+    margin: 0;
+    font-weight: bold;
+    font-size: 1.8rem;
+    /* Removed color override, uses general h1 */
+    /* Removed margin-bottom override */
+}
+
+.history-results-page .language-switcher { /* Scoped */
+    display: flex;
+    align-items: center;
+    margin-left: 1.5rem;
+}
+
+.history-results-page .language-switcher select { /* Scoped */
+    background-color: var(--outer-space);
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.history-results-page .language-switcher select option { /* Scoped */
+    background-color: var(--outer-space);
+    color: white;
+}
+
+.history-results-page .nav-links { /* Scoped */
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.history-results-page .nav-links a { /* Scoped */
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+    transition: opacity 0.2s;
+    padding: 0.5rem 0.8rem;
+    border-radius: 4px;
+}
+
+.history-results-page .nav-links a:hover { /* Scoped */
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.history-results-page .card { /* Scoped */
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    /* Added text-align: left; as container no longer centers */
+    text-align: left;
+}
+
+.history-results-page .card h2 { /* Scoped */
+    margin-top: 0;
+    color: var(--outer-space);
+    font-weight: bold;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.history-results-page .card-grid { /* Scoped */
+    /* Implemented CSS Grid */
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); /* Aim for ~3 wider columns */
+    gap: 1.5rem; /* Spacing between cards */
+    align-items: start; /* Align items to the start of the grid cell */
+    padding-bottom: 1rem;
+}
+
+.history-results-page .message-card { /* Scoped */
+    background: #fff;
+    border-radius: 12px;
+    /* margin-bottom: 1.5rem; Replaced by grid gap */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: transform 0.3s, box-shadow 0.3s;
+    display: flex;
+    flex-direction: column;
+    /* width: 31%; Removed, Grid handles width */
+    /* height: 100%; Removed */
+    overflow: hidden; /* Contain content within card boundaries */
+}
+.history-results-page .message-card:hover { /* Scoped */
+    transform: translateY(-5px);
+    box-shadow: 0 12px 20px rgba(0,0,0,0.1);
+}
+
+.history-results-page .message-header { /* Scoped */
+    background-color: var(--uranian-blue);
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Overriding general .reaction-count */
+.history-results-page .reaction-count { /* Scoped */
+    display: inline-flex;
+    align-items: center;
+    font-weight: bold;
+    color: var(--outer-space);
+    background: rgba(255, 255, 255, 0.6); /* Different background */
+    padding: 0.4rem 0.8rem; /* Different padding */
+    border-radius: 20px; /* Different radius */
+    /* Removed font-size override */
+    /* Removed align-self */
+}
+
+.history-results-page .reaction-count::before { /* Scoped */
+    content: "❤️";
+    margin-right: 0.5rem;
+}
+
+.history-results-page .message-content { /* Scoped */
+    padding: 1.5rem;
+    flex-grow: 1;
+}
+
+/* Overriding general .message-preview */
+.history-results-page .message-preview { /* Scoped */
+    color: var(--paynes-gray);
+    font-size: 1rem; /* Different font-size */
+    line-height: 1.5;
+    margin: 0; /* Different margin */
+    /* Removed word-wrap */
+}
+
+.history-results-page .message-footer { /* Scoped */
+    padding: 1rem 1.5rem;
+    background-color: #f7f9fc;
+    border-top: 1px solid #eee;
+    text-align: right;
+}
+
+/* Overriding general .message-link */
+.history-results-page .message-link { /* Scoped */
+    display: inline-block; /* Different display */
+    background-color: var(--air-superiority-blue); /* Added background */
+    color: white; /* Different color */
+    text-decoration: none;
+    padding: 0.5rem 1.2rem; /* Added padding */
+    border-radius: 4px; /* Added radius */
+    font-weight: bold; /* Different weight */
+    transition: background-color 0.2s, transform 0.2s; /* Added transition */
+    /* Removed font-size */
+    /* Removed align-self */
+}
+
+.history-results-page .message-link:hover { /* Scoped */
+    background-color: var(--paynes-gray); /* Different hover */
+    transform: translateY(-2px); /* Added transform */
+    /* Removed text-decoration */
+}
+
+.history-results-page .search-meta { /* Scoped */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.history-results-page .meta-item { /* Scoped */
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+
+.history-results-page .meta-label { /* Scoped */
+    color: var(--paynes-gray);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.history-results-page .meta-value { /* Scoped */
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: var(--outer-space);
+}
+
+/* Overriding general .back-btn */
+.history-results-page .back-btn { /* Scoped */
+    display: inline-block; /* Different display */
+    background-color: var(--paynes-gray); /* Different background */
+    color: white; /* Different color */
+    text-decoration: none;
+    padding: 0.6rem 1.2rem; /* Different padding */
+    border-radius: 4px; /* Different radius */
+    font-weight: bold; /* Different weight */
+    transition: background-color 0.2s; /* Added transition */
+    margin-top: 1.5rem; /* Different margin */
+    /* Removed width */
+}
+
+.history-results-page .back-btn:hover { /* Scoped */
+    background-color: var(--outer-space); /* Different hover */
+}
+
+.history-results-page .no-results { /* Scoped */
+    text-align: center;
+    padding: 3rem;
+    color: var(--paynes-gray);
+}
+
+.history-results-page .copyright { /* Scoped */
+    position: fixed;
+    bottom: 1rem;
+    right: 2rem;
+    font-size: 0.8rem;
+    color: var(--paynes-gray);
+    text-align: right;
+}
+
+/* Responsive rules specific to history results */
+@media (max-width: 768px) {
+    .history-results-page .header-content { /* Scoped */
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+
+    .history-results-page .card-grid { /* Scoped */
+        grid-template-columns: 1fr; /* Single column on smaller screens */
+    }
+
+    .history-results-page .meta-item { /* Scoped */
+        padding: 0.8rem;
+    }
+}
+
+.history-results-page .media-container { /* Scoped */
+    position: relative;
+    margin-top: 1rem;
+    overflow: hidden;
+    background-color: #eee;
+    border-radius: 8px;
+    min-height: 150px;
+    transition: height 0.2s ease-in-out;
+}
+
+.history-results-page .media-container img, /* Scoped */
+.history-results-page .media-container video { /* Scoped */
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.history-results-page .media-nav-arrow { /* Scoped */
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+.history-results-page .left-arrow { left: 10px; } /* Scoped */
+.history-results-page .right-arrow { right: 10px; } /* Scoped */
+
+/* ============================================= */
+/* End of styles moved from history_results.html */
+/* ============================================= */
