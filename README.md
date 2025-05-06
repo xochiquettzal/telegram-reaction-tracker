@@ -4,7 +4,8 @@
 
 Telegram Reaction Tracker is a web application that finds and lists the most reacted messages in a Telegram chat.
 
-![image](https://github.com/user-attachments/assets/606142c1-cad4-4fb7-8668-031f3297aed7)
+![image](https://github.com/user-attachments/assets/89dd8f1e-a58a-4614-8ee7-5946610543a8)
+
 
 
 ## Features
@@ -87,9 +88,12 @@ telegramTracker/
 6. Results will be listed in descending order by reaction count
 
 ## History Page Usage
+![image](https://github.com/user-attachments/assets/07fd372a-72db-4e3c-9625-5078eacd5060)
 
 The history page allows you to view your past search queries and their results.
-
-![image](https://github.com/user-attachments/assets/741c7f30-775e-4458-b0ca-b940f28b39ed)
-
 You can also delete individual history entries or use the checkboxes and "Delete Selected" button to remove multiple entries at once.
+
+![image](https://github.com/user-attachments/assets/f5419fbc-d91f-41fc-93ec-411fd7675a2b)
+
+
+
