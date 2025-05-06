@@ -1,0 +1,18 @@
+<!-- templates/partials/header.html -->
+<header class="header">
+    <div class="header-content">
+        <h1>{{ t('app_name', lang) }}</h1>
+        <div class="nav-links">
+            <a href="{{ url_for('index') }}">{{ t('new_search', lang) }}</a>
+            <a href="{{ url_for('history') }}">{{ t('history', lang) }}</a>
+
+            <div class="language-switcher">
+                <select id="language-select" onchange="changeLanguage(this.value)">
+                    {% for code, name in languages.items() %}
+                        <option value="{{ code }}" {% if code == lang %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+</header>

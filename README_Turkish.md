@@ -1,6 +1,6 @@
 # Telegram Tepki İzleyici
 
-> Tepki sayılarını takip ederek herhangi bir Telegram sohbetindeki veya kanalındaki en popüler ve ilgi çekici mesajları keşfetmenize yardımcı olan güçlü bir analiz aracı.
+> Tepki sayılarını takip ederek herhangi bir Telegram sohbetindeki veya kanalındaki en popüler ve ilgi çekici mesajları keşfetmenize yardımcı olan bir analiz aracı.
 
 Telegram Tepki İzleyici, bir Telegram sohbetindeki en çok tepki alan mesajları bulup listeleyen bir web uygulamasıdır.
 
@@ -11,8 +11,8 @@ Telegram Tepki İzleyici, bir Telegram sohbetindeki en çok tepki alan mesajlar�
 - Telegram gruplarında/kanallarında en çok tepki alan mesajları bulma
 - Belirli zaman aralıklarında arama yapma (7 gün, 30 gün, 90 gün, 180 gün, tüm zamanlar)
 - Arama geçmişini kaydetme ve görüntüleme
-- **Medya indirme sırasında hareketli GIF'lerin daha iyi işlenmesi.**
-- **Geçmiş sayfasından toplu geçmiş kaydı silme.**
+- Geçmiş sayfasından toplu geçmiş kaydı silme.
+- Tepki almış mesajlar için medya indirme (eğer "Tepkilere göre filtrele" seçeneği aktifse).
 - Türkçe ve İngilizce dil desteği
 - Tepki sayısına göre sıralanmış sonuçlar
 - Mesaj bağlantıları (t.me)
@@ -65,7 +65,10 @@ telegramTracker/
 │   └── web/               # Web rotaları
 │
 ├── static/                # Statik dosyalar (CSS, JS, resimler, fontlar)
+│   ├── css/
+│   └── js/
 ├── templates/             # HTML şablonları
+│   └── partials/          # Tekrar kullanılabilir şablon parçacıkları
 ├── app.py                 # Uygulama başlatıcı
 ├── .env                   # Çevre değişkenleri
 └── requirements.txt       # Bağımlılıklar
@@ -75,8 +78,10 @@ telegramTracker/
 
 1. Ana sayfada bir Telegram sohbeti veya kanalı belirtin (kullanıcı adı veya ID ile)
 2. Tarama yapmak istediğiniz zaman aralığını seçin
-3. "Tepkileri Getir" butonuna tıklayın
-4. Sonuçlar, tepki sayısına göre azalan sırada listelenecektir
+3. İsteğe bağlı olarak, yalnızca tepki almış mesajlar için medyaları işlemek ve indirmek üzere "Tepkilere göre filtrele" seçeneğini işaretleyin.
+4. İsteğe bağlı olarak, medyaların indirileceği en iyi girişlerin (mesajlar veya gruplar) sayısı için bir "İndirme limiti" belirleyin.
+5. "Tepkileri Getir" butonuna tıklayın
+6. Sonuçlar, tepki sayısına göre azalan sırada listelenecektir
 
 ## Geçmiş Sayfası Kullanımı
 

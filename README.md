@@ -1,6 +1,6 @@
 # Telegram Reaction Tracker
 
-> A powerful analytics tool that helps you discover the most popular and engaging messages in any Telegram chat or channel by tracking reaction counts.
+> An analytics tool that helps you discover the most popular and engaging messages in any Telegram chat or channel by tracking reaction counts.
 
 Telegram Reaction Tracker is a web application that finds and lists the most reacted messages in a Telegram chat.
 
@@ -14,6 +14,7 @@ Telegram Reaction Tracker is a web application that finds and lists the most rea
 - Save and view search history
 - **Improved handling of animated GIFs during media download.**
 - **Bulk delete history entries from the history page.**
+- **Media download for messages with reactions (when "Filter by reactions" is enabled).**
 - English and Turkish language support
 - Results sorted by reaction count
 - Message links (t.me)
@@ -54,6 +55,7 @@ This application uses the following technologies:
 - SQLite: Database
 - HTML, CSS: User interface
 
+
 ## Folder Structure
 
 ```
@@ -66,7 +68,10 @@ telegramTracker/
 │   └── web/               # Web routes
 │
 ├── static/                # Static files (CSS, JS, images, fonts)
+│   ├── css/
+│   └── js/
 ├── templates/             # HTML templates
+│   └── partials/          # Reusable template snippets
 ├── app.py                 # Application starter
 ├── .env                   # Environment variables
 └── requirements.txt       # Dependencies
@@ -76,8 +81,10 @@ telegramTracker/
 
 1. Specify a Telegram chat or channel on the main page (by username or ID)
 2. Select the time period you want to scan
-3. Click the "Get Reactions" button
-4. Results will be listed in descending order by reaction count
+3. Optionally, check "Filter by reactions" to only process and download media for messages that have reactions.
+4. Optionally, set a "Download limit" for the number of top entries (messages or groups) to download media from.
+5. Click the "Get Reactions" button
+6. Results will be listed in descending order by reaction count
 
 ## History Page Usage
 

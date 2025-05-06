@@ -1,34 +1,30 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // SSE logic for the loading page
-    // Use correct IDs from loading.html
-    const scannedCountElement = document.getElementById('status-count'); 
+    // --- SSE logic for the loading page ---
+    // Check if we are on the loading page by looking for a specific element
     const progressTextElement = document.getElementById('loading-status'); 
-    // const errorMessageElement = document.getElementById('error-message'); // Element does not exist
-    // const cancelButtonElement = document.getElementById('cancel-button'); // Element does not exist
-    const scanProgressStatusElement = document.getElementById('scan-progress-status'); 
-    const mediaProgressStatusElement = document.getElementById('media-progress-status'); 
-    const mediaCountElement = document.getElementById('media-count'); 
-    const mediaTotalElement = document.getElementById('media-total'); 
 
-    // Ensure the essential elements exist before proceeding
-    if (!scannedCountElement || !progressTextElement || !scanProgressStatusElement || !mediaProgressStatusElement || !mediaCountElement || !mediaTotalElement) {
-        console.error("One or more essential loading page elements not found. SSE script might not function correctly.");
-        // Decide if we should return or try to continue partially
-        // For now, let's log the error and continue, as some parts might still work.
-    }
-
-    // Only proceed if the core elements for displaying status are found
+    // Only run SSE logic if the loading status element exists
     if (progressTextElement) {
+        console.log("Loading page detected, initializing SSE."); // Add log for confirmation
+        const scannedCountElement = document.getElementById('status-count'); 
+        // const errorMessageElement = document.getElementById('error-message'); // Element does not exist
+        // const cancelButtonElement = document.getElementById('cancel-button'); // Element does not exist
+        const scanProgressStatusElement = document.getElementById('scan-progress-status'); 
+        const mediaProgressStatusElement = document.getElementById('media-progress-status'); 
+        const mediaCountElement = document.getElementById('media-count'); 
+        const mediaTotalElement = document.getElementById('media-total'); 
+
+        // We already know progressTextElement exists due to the outer 'if'
         progressTextElement.textContent = 'Connecting to server...';
-    } else {
-         console.error("Critical element 'loading-status' not found. Cannot display status.");
-         return; // Stop if we can't show basic status
-    }
 
+        // Check for other elements existence inside this block
+        if (!scannedCountElement || !scanProgressStatusElement || !mediaProgressStatusElement || !mediaCountElement || !mediaTotalElement) {
+            console.warn("One or more non-critical loading page elements not found. SSE script might have reduced functionality.");
+        }
 
-    const eventSource = new EventSource('/stream-progress');
+        const eventSource = new EventSource('/stream-progress');
 
-    eventSource.onopen = function() {
+        eventSource.onopen = function() {
         if (progressTextElement) {
             progressTextElement.textContent = 'Scanning messages...';
         }
@@ -115,118 +111,21 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error("EventSource failed:", err); // Keep error log
         if (progressTextElement) progressTextElement.textContent = 'Connection error. Unable to get progress.';
          // Cannot display detailed error message as element doesn't exist
-        // if (errorMessageElement) {
+        // if (errorMessageElement) { // Element doesn't exist
         //     errorMessageElement.textContent = 'Failed to connect to the progress stream. Please try again.';
         //     errorMessageElement.style.display = 'block';
         // }
          // Cannot show cancel button as element doesn't exist
-        // if (cancelButtonElement) {
+        // if (cancelButtonElement) { // Element doesn't exist
         //     cancelButtonElement.style.display = 'inline-block';
         // }
         eventSource.close(); // Close connection on error
-    };
-});
+        };
 
-// Function to apply aspect ratio to a container
-function applyAspectRatio(container, width, height) {
-    if (container && width > 0 && height > 0) {
-        container.style.aspectRatio = `${width} / ${height}`;
+    } else {
+        // Log that SSE is not initialized because it's not the loading page
+        // console.log("Not on loading page, SSE not initialized."); // Optional log
     }
-}
+    // --- End of SSE logic ---
 
-// Media navigation logic for results and history pages
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.media-container').forEach(container => {
-        try {
-            const mediaPaths = JSON.parse(container.dataset.mediaPaths);
-            if (!mediaPaths || mediaPaths.length <= 1) {
-                // No paths or only one path, no navigation needed.
-                // Ensure arrows are hidden if they somehow exist (template should handle this)
-                const leftArrow = container.querySelector('.left-arrow');
-                const rightArrow = container.querySelector('.right-arrow');
-                if(leftArrow) leftArrow.style.display = 'none';
-                if(rightArrow) rightArrow.style.display = 'none';
-                return;
-            }
-
-            const leftArrow = container.querySelector('.left-arrow');
-            const rightArrow = container.querySelector('.right-arrow');
-            let currentIndex = 0; // Assume template shows the first item (index 0) initially
-
-            // Function to update the displayed media
-            function updateMediaDisplay(index) {
-                const currentMediaElement = container.querySelector('img, video');
-                const mediaPath = mediaPaths[index];
-                const fileExtension = mediaPath.split('.').pop().toLowerCase();
-                const mediaUrl = `/downloads/${mediaPath}`; // Construct the URL
-
-                // Create the new element first
-                let newMediaElement;
-                if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension)) {
-                    newMediaElement = document.createElement('img');
-                    newMediaElement.src = mediaUrl;
-                    newMediaElement.alt = 'Downloaded media'; // Consider adding translation key/logic if needed
-                    newMediaElement.style.maxWidth = '100%';
-                    newMediaElement.style.height = 'auto';
-                    newMediaElement.style.borderRadius = '8px';
-                    // Apply aspect ratio once image is loaded
-                    newMediaElement.addEventListener('load', () => {
-                        applyAspectRatio(container, newMediaElement.naturalWidth, newMediaElement.naturalHeight);
-                    });
-                } else if (['mp4', 'mov', 'avi', 'mkv'].includes(fileExtension)) {
-                    newMediaElement = document.createElement('video');
-                    newMediaElement.controls = true;
-                    // Setting width via style is better for responsiveness
-                    newMediaElement.style.width = '100%'; 
-                    newMediaElement.style.maxWidth = '100%';
-                    newMediaElement.style.borderRadius = '8px';
-                    const source = document.createElement('source');
-                    source.src = mediaUrl;
-                    // Attempt basic type detection, might need improvement
-                    source.type = `video/${fileExtension === 'mov' ? 'quicktime' : fileExtension}`; 
-                    newMediaElement.appendChild(source);
-                    const fallbackText = document.createTextNode('Your browser does not support the video tag.');
-                    newMediaElement.appendChild(fallbackText);
-                    // Apply aspect ratio once video metadata is loaded
-                    newMediaElement.addEventListener('loadedmetadata', () => {
-                         applyAspectRatio(container, newMediaElement.videoWidth, newMediaElement.videoHeight);
-                    });
-                } else {
-                    // Silently ignore unsupported types or log minimally if needed
-                    return;
-                }
-
-                // Remove the old element if it exists
-                if (currentMediaElement) {
-                    container.removeChild(currentMediaElement);
-                }
-
-                // Insert the new media element before the left arrow (or as the first child if no arrows)
-                if (leftArrow) {
-                    container.insertBefore(newMediaElement, leftArrow);
-                } else {
-                    // Fallback: insert as first child if arrows aren't there (shouldn't happen if length > 1)
-                    container.insertBefore(newMediaElement, container.firstChild);
-                }
-            }
-
-            // Attach event listeners
-            if (leftArrow) {
-                leftArrow.addEventListener('click', () => {
-                    currentIndex = (currentIndex - 1 + mediaPaths.length) % mediaPaths.length;
-                    updateMediaDisplay(currentIndex);
-                });
-            } 
-
-            if (rightArrow) {
-                rightArrow.addEventListener('click', () => {
-                    currentIndex = (currentIndex + 1) % mediaPaths.length;
-                    updateMediaDisplay(currentIndex);
-                });
-            } 
-
-        } catch (e) {
-            console.error("Error processing media container:", e); // Keep error log for actual errors
-        }
-    });
-});
+}); // End of DOMContentLoaded listener

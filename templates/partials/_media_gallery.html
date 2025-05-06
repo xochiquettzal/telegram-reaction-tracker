@@ -1,0 +1,27 @@
+{# templates/partials/_media_gallery.html #}
+{# Expects 'media_paths' (list of strings) and 't' (translation function) and 'lang' as context #}
+{% if media_paths %}
+    <div class="media-container" data-media-paths="{{ media_paths | tojson | forceescape }}">
+        {% set first_media_path = media_paths[0] %}
+        {% set file_extension = first_media_path.split('.')[-1].lower() %}
+        
+        <div class="media-item"> {# Wrapper for individual media item #}
+            {% if file_extension in ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'] %}
+                <img src="{{ url_for('serve_downloaded_file', subpath=first_media_path) }}" alt="{{ t('downloaded_image_alt', lang) }}">
+            {% elif file_extension in ['mp4', 'mov', 'avi', 'mkv', 'webm'] %}
+                <video controls>
+                    {# Provide multiple sources if possible, or determine type dynamically #}
+                    <source src="{{ url_for('serve_downloaded_file', subpath=first_media_path) }}" type="video/{{ file_extension if file_extension != 'mov' else 'quicktime' }}"> 
+                    {{ t('video_not_supported', lang) }}
+                </video>
+            {% else %}
+                 <p>{{ t('unsupported_media', lang) }}: {{ first_media_path.split('/')[-1] }}</p>
+            {% endif %} {# Closes if/elif/else for file_extension #}
+        </div>
+
+        {% if media_paths | length > 1 %}
+            <button class="media-nav-arrow left-arrow" aria-label="{{ t('previous_media', lang) }}"><</button>
+            <button class="media-nav-arrow right-arrow" aria-label="{{ t('next_media', lang) }}">></button>
+        {% endif %}
+    </div>
+{% endif %} {# Closes if media_paths #}

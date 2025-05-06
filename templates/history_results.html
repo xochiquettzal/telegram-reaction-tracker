@@ -1,133 +1,94 @@
-<!DOCTYPE html>
-<html lang="{{ lang }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ t('history_results_title', lang) }} - {{ history['chat_title'] or history['chat_identifier'] }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='img/icon.ico') }}" type="image/x-icon">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='img/icon.ico') }}" type="image/x-icon">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    
-</head>
-<body class="history-results-page"> {/* Added scoping class */}
-    <header class="header">
-        <div class="header-content">
-            <h1>{{ t('app_name', lang) }}</h1>
-            <div class="nav-links">
-                <a href="{{ url_for('index') }}">{{ t('new_search', lang) }}</a>
-                <a href="{{ url_for('history') }}">{{ t('history', lang) }}</a>
-                
-                <div class="language-switcher">
-                    <select id="language-select" onchange="changeLanguage(this.value)">
-                        {% for code, name in languages.items() %}
-                            <option value="{{ code }}" {% if code == lang %}selected{% endif %}>{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
-    </header>
+{% extends 'base.html' %}
 
-    <div class="container">
-        <div class="card">
-            <h2>{{ t('history_results_title', lang) }}</h2>
-            
-            <div class="search-meta">
-                <div class="meta-item">
-                    <div class="meta-label">{{ t('search_chat', lang) }}</div>
-                    <div class="meta-value">{{ history['chat_title'] or history['chat_identifier'] }}</div>
-                </div>
-                <div class="meta-item">
-                    <div class="meta-label">{{ t('search_date', lang) }}</div>
-                    <div class="meta-value">{{ history['timestamp'] }}</div>
-                </div>
-                <div class="meta-item">
-                    <div class="meta-label">{{ t('search_period', lang) }}</div>
-                    <div class="meta-value">{{ history['period_days'] if history['period_days'] is not none else t('period_all', lang) }}</div>
-                </div>
-                <div class="meta-item">
-                    <div class="meta-label">{{ t('messages_found_count', lang) }}</div>
-                    <div class="meta-value">{{ history['messages_found'] }}</div>
-                </div>
-            </div>
-            
-            {% if results %}
-                <div class="card-grid">
-                    {% for message in results %}
-                        <div class="message-card">
-                            <div class="message-header">
-                                <span class="reaction-count">{{ message['reaction_count'] }}</span>
-                            </div>
-                            <div class="message-content">
-                                {# Only show preview if it's not the placeholder #}
-                                {% if message['message_preview'] != '[Media/Empty]' %}
-                                    <p class="message-preview">{{ message['message_preview'] }}</p>
-                                {% endif %}
-                                {# Display downloaded media if available #}
-                                {% if message.media_paths %}
-                                    <div class="media-container" data-media-paths="{{ message.media_paths | tojson | forceescape }}">
-                                        {% set first_media_path = message.media_paths[0] %}
-                                        {% set file_extension = first_media_path.split('.')[-1].lower() %}
-                                        {% if file_extension in ['jpg', 'jpeg', 'png', 'gif'] %}
-                                            <img src="{{ url_for('serve_downloaded_file', subpath=first_media_path) }}" alt="{{ t('downloaded_image_alt', lang) }}">
-                                        {% elif file_extension in ['mp4', 'mov', 'avi', 'mkv'] %}
-                                            <video controls>
-                                                <source src="{{ url_for('serve_downloaded_file', subpath=first_media_path) }}" type="video/mp4"> {# Assuming mp4 for now #}
-                                                {{ t('video_not_supported', lang) }}
-                                            </video>
-                                        {% endif %} {# Closes if/elif for file_extension #}
-                                        
-                                        {% if message.media_paths | length > 1 %}
-                                            <button class="media-nav-arrow left-arrow"><</button>
-                                            <button class="media-nav-arrow right-arrow">></button>
-                                        {% endif %}
-                                    </div>
-                                {% endif %} {# Closes if message.media_paths #}
-                            </div>
-                            <div class="message-footer">
-                                <a href="{{ message['message_link'] }}" target="_blank" class="message-link">{{ t('view_message', lang) }}</a>
-                            </div>
-                        </div>
-                    {% endfor %} {# Closes for message in results #}
-                </div> {# Closes card-grid #}
-            {% else %}
-                <div class="no-results">
-                    <p>{{ t('no_results', lang) }}</p>
-                </div>
-            {% endif %} {# Closes if results #}
-            
-            <!-- Pagination Controls -->
-            {% if total_pages > 1 %}
-            <div class="pagination" style="margin-top: 2rem; text-align: center;">
-                {% if page > 1 %}
-                    <a href="{{ url_for('view_history_results', history_id=history['id'], page=page-1, lang=lang) }}" class="page-btn btn btn-secondary" style="margin-right: 10px;">&laquo; {{ t('previous', lang) }}</a>
-                {% endif %}
-                
-                <span class="page-info" style="margin: 0 15px;">{{ t('page', lang) }} {{ page }} / {{ total_pages }}</span>
-                
-                {% if page < total_pages %}
-                    <a href="{{ url_for('view_history_results', history_id=history['id'], page=page+1, lang=lang) }}" class="page-btn btn btn-secondary" style="margin-left: 10px;">{{ t('next', lang) }} &raquo;</a>
-                {% endif %}
-            </div>
-            {% endif %}
-            <!-- End Pagination Controls -->
+{% block title %}{{ t('history_results_title', lang) }} - {{ history['chat_title'] or history['chat_identifier'] }}{% endblock %}
 
-            <a href="{{ url_for('history') }}" class="back-btn" style="margin-top: 2rem;">{{ t('back_to_history', lang) }}</a>
+{% block head_extra %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.classList.add('history-results-page');
+        });
+    </script>
+{% endblock %}
+
+{% block content %}
+<div class="card"> {# This card is specific to history_results, styles are scoped with .history-results-page .card #}
+    <h2>{{ t('history_results_title', lang) }}</h2>
+
+    <div class="search-meta">
+        <div class="meta-item">
+            <div class="meta-label">{{ t('search_chat', lang) }}</div>
+            <div class="meta-value">{{ history['chat_title'] or history['chat_identifier'] }}</div>
         </div>
-        
-        <div class="copyright">
-            &copy; {{ now().year }} xochiquettzal
+        <div class="meta-item">
+            <div class="meta-label">{{ t('search_date', lang) }}</div>
+            <div class="meta-value">{{ history['timestamp'] }}</div>
+        </div>
+        <div class="meta-item">
+            <div class="meta-label">{{ t('search_period', lang) }}</div>
+            <div class="meta-value">{{ history['period_days'] if history['period_days'] is not none else t('period_all', lang) }}</div>
+        </div>
+        <div class="meta-item">
+            <div class="meta-label">{{ t('messages_found_count', lang) }}</div>
+            <div class="meta-value">{{ history['messages_found'] }}</div>
         </div>
     </div>
-    
-    <script>
-        function changeLanguage(lang) {
-            const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('lang', lang);
-            window.location.href = currentUrl.toString();
-        }
-    </script>
-    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
-</body>
-</html>
+
+    {% if results %}
+        <div class="card-grid">
+            {% for message in results %}
+                <div class="message-card">
+                    <div class="message-header">
+                        <span class="reaction-count">{{ message['reaction_count'] }}</span>
+                    </div>
+                    <div class="message-content">
+                        {% if message['message_preview'] != '[Media/Empty]' %}
+                            <p class="message-preview">{{ message['message_preview'] }}</p>
+                        {% endif %}
+                        
+                        {# Include the media gallery partial #}
+                        {% if message.media_paths %}
+                            {# Explicitly set media_paths in the context for the include #}
+                            {% set media_paths = message.media_paths %}
+                            {% include 'partials/_media_gallery.html' %}
+                        {% endif %}
+                    </div>
+                    <div class="message-footer">
+                        <a href="{{ message['message_link'] }}" target="_blank" class="message-link">{{ t('view_message', lang) }}</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="no-results">
+            <p>{{ t('no_results', lang) }}</p>
+        </div>
+    {% endif %}
+
+    <!-- Pagination Controls -->
+    {% if total_pages > 1 %}
+    <div class="pagination"> {# Inline styles removed, handled by CSS #}
+        {% if page > 1 %}
+            <a href="{{ url_for('view_history_results', history_id=history['id'], page=page-1, lang=lang) }}" class="page-btn btn btn-secondary">&laquo; {{ t('previous', lang) }}</a>
+        {% endif %}
+        
+        <span class="page-info">{{ t('page', lang) }} {{ page }} / {{ total_pages }}</span>
+        
+        {% if page < total_pages %}
+            <a href="{{ url_for('view_history_results', history_id=history['id'], page=page+1, lang=lang) }}" class="page-btn btn btn-secondary">{{ t('next', lang) }} &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    <!-- End Pagination Controls -->
+
+    <a href="{{ url_for('history') }}" class="back-btn">{{ t('back_to_history', lang) }}</a>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+    {# General scripts.js is already included in base.html #}
+    {# Include media_gallery.js if there are media paths on the page #}
+    {# Check if any result has a truthy 'media_paths' attribute (exists and is not empty) #}
+    {% if results and results | selectattr('media_paths') | list | length > 0 %}
+        <script src="{{ url_for('static', filename='js/media_gallery.js') }}"></script>
+    {% endif %}
+{% endblock %}

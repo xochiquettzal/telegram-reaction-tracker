@@ -216,9 +216,13 @@ def get_history_results(history_id):
     processed_results = []
     for row in results:
         result_dict = dict(row)
-        if result_dict['media_paths']:
-            result_dict['media_paths'] = result_dict['media_paths'].split(',')
+        media_paths_str = result_dict['media_paths'] # Get the concatenated string
+        if media_paths_str:
+            # Split by comma, strip whitespace from each path, and filter out any empty strings
+            paths = [path.strip() for path in media_paths_str.split(',') if path.strip()]
+            result_dict['media_paths'] = paths
         else:
+            # If the string is None or empty, ensure it's an empty list
             result_dict['media_paths'] = []
         processed_results.append(result_dict)
 

@@ -1,239 +1,27 @@
-<!DOCTYPE html>
-<html lang="{{ lang }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ t('loading_title', lang) }} - {{ t('app_name', lang) }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='img/icon.ico') }}" type="image/x-icon">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='img/icon.ico') }}" type="image/x-icon">
-    <style>
-        /* League Spartan Font tanımlaması */
-        @font-face {
-            font-family: 'League Spartan';
-            src: url('{{ url_for("static", filename="fonts/leaguespartan-bold.woff2") }}') format('woff2'),
-                 url('{{ url_for("static", filename="fonts/leaguespartan-bold.woff") }}') format('woff'),
-                 url('{{ url_for("static", filename="fonts/leaguespartan-bold.ttf") }}') format('truetype');
-            font-weight: bold;
-            font-style: normal;
-        }
-        
-        :root {
-            --uranian-blue: #a9cef4;
-            --outer-space: #36494e;
-            --black: #000000;
-            --air-superiority-blue: #7ea0b7;
-            --paynes-gray: #597081;
-        }
-        
-        body {
-            font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, sans-serif;
-            background-color: #f7f9fc;
-            color: var(--outer-space);
-            line-height: 1.6;
-            margin: 0;
-        }
-        
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 2rem;
-            position: relative;
-            min-height: calc(100vh - 120px);
-        }
-        
-        .header {
-            background-color: var(--paynes-gray);
-            color: white;
-            padding: 1.5rem 0;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            margin-bottom: 2rem;
-        }
-        
-        .header-content {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .header h1 {
-            margin: 0;
-            font-weight: bold;
-            font-size: 1.8rem;
-        }
-        
-        .language-switcher {
-            display: flex;
-            align-items: center;
-            margin-left: 1.5rem;
-        }
-        
-        .language-switcher select {
-            background-color: var(--outer-space);
-            color: white;
-            border: none;
-            padding: 0.4rem 0.8rem;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            cursor: pointer;
-        }
-        
-        .language-switcher select option {
-            background-color: var(--outer-space);
-            color: white;
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-        
-        .nav-links a {
-            color: white;
-            text-decoration: none;
-            font-weight: bold;
-            transition: opacity 0.2s;
-            padding: 0.5rem 0.8rem;
-            border-radius: 4px;
-        }
-        
-        .nav-links a:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-        
-        .loading-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-            padding: 2rem;
-            text-align: center;
-            max-width: 600px;
-            margin: 3rem auto;
-            transition: background-color 0.5s ease; /* Add smooth transition */
-        }
-        
-        .loading-title {
-            font-size: 1.8rem;
-            margin-bottom: 1rem;
-            color: var(--outer-space);
-            font-weight: bold;
-            transition: color 0.5s ease; /* Add smooth transition */
-        }
-        
-        .loading-description {
-            color: var(--paynes-gray);
-            margin-bottom: 2rem;
-            transition: opacity 0.5s ease; /* Add smooth transition */
-        }
-        
-        .loader-container {
-            margin: 2rem 0;
-        }
-        
-        /* Döngüsel ilerleme animasyonu */
-        .loader {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 1.5rem;
-            position: relative;
-            border: 4px solid var(--uranian-blue);
-            border-radius: 50%;
-            border-top-color: var(--air-superiority-blue);
-            animation: spin 1.5s linear infinite;
-            transition: border-color 0.5s ease, border-top-color 0.5s ease, animation-duration 0.5s ease;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .status-text {
-            font-size: 1.1rem;
-            color: var(--paynes-gray);
-            margin: 1rem 0;
-        }
-        
-        /* Copyright */
-        .copyright {
-            position: absolute;
-            bottom: 1rem;
-            right: 2rem;
-            font-size: 0.8rem;
-            color: var(--paynes-gray);
-            text-align: right;
-        }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
-            .header-content {
-                flex-direction: column;
-                text-align: center;
-                gap: 1rem;
-            }
-            
-            .nav-links {
-                justify-content: center;
-            }
-        }
-    </style>
-</head>
-<body>
-    <header class="header">
-        <div class="header-content">
-            <h1>{{ t('app_name', lang) }}</h1>
-            <div class="nav-links">
-                <a href="{{ url_for('index') }}">{{ t('new_search', lang) }}</a>
-                <a href="{{ url_for('history') }}">{{ t('history', lang) }}</a>
-                
-                <div class="language-switcher">
-                    <select id="language-select" onchange="changeLanguage(this.value)">
-                        {% for code, name in languages.items() %}
-                            <option value="{{ code }}" {% if code == lang %}selected{% endif %}>{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
-    </header>
+{% extends 'base.html' %}
 
-    <div class="container">
-        <div class="loading-card">
-            <h2 class="loading-title">{{ t('loading_title', lang) }}</h2>
-            <p class="loading-description">{{ t('loading_description', lang) }}</p>
-            
-            <div class="loader-container">
-                <div class="loader"></div>
-                
-                <div id="scan-progress-status" class="status-text">
-                    <span id="status-label">{{ t('messages_scanned', lang) }}</span>
-                    <span id="status-count">0</span>
-                </div>
-                <div id="loading-status" class="status-text">{{ t('please_wait', lang) }}</div>
+{% block title %}{{ t('loading_title', lang) }} - {{ t('app_name', lang) }}{% endblock %}
 
-                <!-- New element for media download progress -->
-                <div id="media-progress-status" class="status-text" style="display: none;">
-                    {{ t('media_processed', lang) }} <span id="media-count">0</span> / <span id="media-total">0</span>
-                </div>
-            </div>
+{% block content %}
+<div class="loading-card">
+    <h2 class="loading-title">{{ t('loading_title', lang) }}</h2>
+    <p class="loading-description">{{ t('loading_description', lang) }}</p>
+
+    <div class="loader-container">
+        <div class="loader"></div>
+
+        {# These IDs are used by static/js/scripts.js for SSE updates #}
+        <div id="scan-progress-status" class="status-text">
+            <span id="status-label">{{ t('messages_scanned', lang) }}: </span> {# Added colon for clarity #}
+            <span id="status-count">0</span>
         </div>
-        
-        <div class="copyright">
-            &copy; {{ now().year }} xochiquettzal
+        <div id="loading-status" class="status-text">{{ t('please_wait', lang) }}</div>
+
+        <div id="media-progress-status" class="status-text" style="display: none;">
+            {{ t('media_processed', lang) }}: <span id="media-count">0</span> / <span id="media-total">0</span> {# Added colon #}
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <script>
-        function changeLanguage(lang) {
-            const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('lang', lang);
-            window.location.href = currentUrl.toString();
-        }
-    </script>
-    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
-</body>
-</html>
+{# scripts.js is already included in base.html, which handles the SSE logic for these elements #}

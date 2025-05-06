@@ -1,517 +1,79 @@
-<!DOCTYPE html>
-<html lang="{{ lang }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ t('history_title', lang) }} - {{ t('app_name', lang) }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='img/icon.ico') }}" type="image/x-icon">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='img/icon.ico') }}" type="image/x-icon">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <style>
-        /* League Spartan Font tanımlaması */
-        @font-face {
-            font-family: 'League Spartan';
-            src: url('{{ url_for("static", filename="fonts/leaguespartan-bold.woff2") }}') format('woff2'),
-                 url('{{ url_for("static", filename="fonts/leaguespartan-bold.woff") }}') format('woff'),
-                 url('{{ url_for("static", filename="fonts/leaguespartan-bold.ttf") }}') format('truetype');
-            font-weight: bold;
-            font-style: normal;
-        }
-        
-        :root {
-            --uranian-blue: #a9cef4;
-            --outer-space: #36494e;
-            --black: #000000;
-            --air-superiority-blue: #7ea0b7;
-            --paynes-gray: #597081;
-        }
-        
-        body {
-            font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, sans-serif;
-            background-color: #f7f9fc;
-            color: var(--outer-space);
-            line-height: 1.6;
-            margin: 0;
-        }
-        
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 2rem;
-            min-height: calc(100vh - 120px); /* Ensure container takes up at least the full viewport height */
-            position: relative; /* Needed for absolute positioning of copyright */
-        }
-        
-        .header {
-            background-color: var(--paynes-gray);
-            color: white;
-            padding: 1.5rem 0;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            margin-bottom: 2rem;
-        }
-        
-        .header-content {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .header h1 {
-            margin: 0;
-            font-weight: bold;
-            font-size: 1.8rem;
-        }
-        
-        .language-switcher {
-            display: flex;
-            align-items: center;
-            margin-left: 1.5rem;
-        }
-        
-        .language-switcher select {
-            background-color: var(--outer-space);
-            color: white;
-            border: none;
-            padding: 0.4rem 0.8rem;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            cursor: pointer;
-        }
-        
-        .language-switcher select option {
-            background-color: var(--outer-space);
-            color: white;
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-        
-        .nav-links a {
-            color: white;
-            text-decoration: none;
-            font-weight: bold;
-            transition: opacity 0.2s;
-            padding: 0.5rem 0.8rem;
-            border-radius: 4px;
-        }
-        
-        .nav-links a:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-        
-        .history-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
-        
-        .history-card h2 {
-            margin-top: 0;
-            color: var(--outer-space);
-            font-weight: bold;
-            font-size: 1.5rem;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 1rem;
-            margin-bottom: 1.5rem;
-        }
+{% extends 'base.html' %}
 
-        .history-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem; /* Add some space between header and table */
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        
-        th, td {
-            padding: 1rem;
-            text-align: left;
-        }
-        
-        th {
-            background-color: var(--uranian-blue);
-            color: var(--outer-space);
-            font-weight: 500;
-        }
-        
-        td {
-            border-bottom: 1px solid #eee;
-        }
-        
-        tr:last-child td {
-            border-bottom: none;
-        }
-        
-        tr:nth-child(even) {
-            background-color: rgba(169, 206, 244, 0.1);
-        }
-        
-        tr:hover {
-            background-color: rgba(169, 206, 244, 0.2);
-        }
-        
-        .btn {
-            display: inline-block;
-            background-color: var(--air-superiority-blue);
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            font-weight: bold;
-            transition: background-color 0.2s, transform 0.1s;
-            border: none;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-        
-        .btn:hover {
-            background-color: var(--paynes-gray);
-            transform: translateY(-2px);
-        }
-        
-        .btn-delete {
-            background-color: #dc3545;
-            margin-left: 0.5rem;
-        }
-        
-        .btn-delete:hover {
-            background-color: #bd2130;
-        }
-        
-        .no-history {
-            text-align: center;
-            padding: 2rem;
-            color: var(--paynes-gray);
-            background-color: rgba(169, 206, 244, 0.1);
-            border-radius: 8px;
-        }
-        
-        .action-buttons {
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        .delete-form {
-            display: inline;
-        }
-        
-        /* Modal for confirmation */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 999;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal-content {
-            background-color: white;
-            padding: 2rem;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 500px;
-            text-align: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        }
-        
-        .modal-buttons {
-            margin-top: 1.5rem;
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-        }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
-            .header-content {
-                flex-direction: column;
-                text-align: center;
-                gap: 1rem;
-                padding: 1rem;
-            }
-            
-            .nav-links {
-                justify-content: center;
-            }
-            
-            table, thead, tbody, th, td, tr {
-                display: block;
-            }
-            
-            thead tr {
-                position: absolute;
-                top: -9999px;
-                left: -9999px;
-            }
-            
-            tr {
-                margin-bottom: 1.5rem;
-                border: 1px solid #ddd;
-                border-radius: 8px;
-            }
-            
-            td {
-                border: none;
-                border-bottom: 1px solid #eee;
-                position: relative;
-                padding-left: 50%;
-                text-align: right;
-            }
-            
-            td:before {
-                position: absolute;
-                top: 1rem;
-                left: 1rem;
-                width: 45%;
-                padding-right: 10px;
-                white-space: nowrap;
-                text-align: left;
-                font-weight: 500;
-                content: attr(data-label);
-            }
-            
-            td:last-child {
-                text-align: center;
-                padding-left: 1rem;
-            }
-        }
-        
-        /* Copyright */
-        .copyright {
-            position: fixed; /* Changed to fixed */
-            bottom: 1rem;
-            right: 2rem;
-            font-size: 0.8rem;
-            color: var(--paynes-gray);
-            text-align: right;
-        }
+{% block title %}{{ t('history_title', lang) }} - {{ t('app_name', lang) }}{% endblock %}
 
-        /* Ensure container has padding to avoid overlap */
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 2rem;
-            padding-bottom: 4rem; /* Add padding to the bottom */
-        }
-    </style>
-</head>
-<body>
-    <header class="header">
-        <div class="header-content">
-            <h1>{{ t('app_name', lang) }}</h1>
-            <div class="nav-links">
-                <a href="{{ url_for('index') }}">{{ t('new_search', lang) }}</a>
-                <a href="{{ url_for('history') }}">{{ t('history', lang) }}</a>
-                
-                <div class="language-switcher">
-                    <select id="language-select" onchange="changeLanguage(this.value)">
-                        {% for code, name in languages.items() %}
-                            <option value="{{ code }}" {% if code == lang %}selected{% endif %}>{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <div class="container">
-        <div class="history-card">
-            <div class="history-header">
-                <h2>{{ t('history_title', lang) }}</h2>
-                {% if history %}
-                    <button type="button" class="btn btn-delete" id="deleteSelectedBtn" disabled>{{ t('delete_selected', lang) }}</button>
-                {% endif %}
-            </div>
-            
-            {% if history %}
-                <table>
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" id="selectAllCheckbox"></th>
-                            <th>{{ t('timestamp', lang) }}</th>
-                            <th>{{ t('chat', lang) }}</th>
-                            <th>{{ t('period', lang) }}</th>
-                            <th>{{ t('messages_found', lang) }}</th>
-                            <th>{{ t('messages_scanned', lang) }}</th>
-                            <th>{{ t('actions', lang) }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for entry in history %}
-                            <tr>
-                                <td><input type="checkbox" class="history-checkbox" value="{{ entry['id'] }}"></td>
-                                <td data-label="{{ t('timestamp', lang) }}">{{ entry['timestamp'] }}</td>
-                                <td data-label="{{ t('chat', lang) }}">{{ entry['chat_title'] or entry['chat_identifier'] }}</td>
-                                <td data-label="{{ t('period', lang) }}">{{ entry['period_days'] if entry['period_days'] is not none else t('period_all', lang) }}</td>
-                                <td data-label="{{ t('messages_found', lang) }}">{{ entry['messages_found'] }}</td>
-                                <td data-label="{{ t('messages_scanned', lang) }}">{{ entry['scanned_count'] }}</td>
-                                <td data-label="{{ t('actions', lang) }}">
-                                    <div class="action-buttons">
-                                        <a href="{{ url_for('view_history_results', history_id=entry['id']) }}" class="btn">{{ t('view_results', lang) }}</a>
-                                    </div>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-
-            {% else %}
-                <div class="no-history">
-                    <p>{{ t('no_history', lang) }}</p>
-                </div>
-            {% endif %}
-        </div>
-        
-        <div class="copyright">
-            &copy; {{ now().year }} xochiquettzal
-        </div>
-    </div>
-    
-    <!-- Silme onay modalı -->
-    <div id="deleteModal" class="modal">
-        <div class="modal-content">
-            <h3>{{ t('confirm_delete', lang) }}</h3>
-            <div class="modal-buttons">
-                <form id="deleteForm" method="post" action="">
-                    <button type="submit" class="btn">{{ t('yes', lang) }}</button>
-                </form>
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">{{ t('no', lang) }}</button>
-            </div>
-        </div>
-    </div>
-
+{% block head_extra %}
+    {# Add a class to body for page-specific CSS scoping if needed, or apply to a main wrapper div #}
     <script>
-        function changeLanguage(lang) {
-            const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('lang', lang);
-            window.location.href = currentUrl.toString();
-        }
-        
-        function confirmDelete(historyId) {
-            const modal = document.getElementById('deleteModal');
-            const deleteForm = document.getElementById('deleteForm');
-            
-            // Silme formunun action URL'sini ayarla
-            deleteForm.action = "/delete_history/" + historyId;
-            
-            // Modalı göster
-            modal.style.display = "flex";
-        }
-        
-        function closeModal() {
-            const modal = document.getElementById('deleteModal');
-            modal.style.display = "none";
-        }
-        
-        // Modal dışına tıklayınca kapatma
-        window.onclick = function(event) {
-            const modal = document.getElementById('deleteModal');
-            if (event.target === modal) {
-                closeModal();
-            }
-        };
-
-        // JavaScript for bulk delete
         document.addEventListener('DOMContentLoaded', function() {
-            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-            const historyCheckboxes = document.querySelectorAll('.history-checkbox');
-            const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-
-            // Function to update the state of the delete button
-            function updateDeleteButtonState() {
-                const checkedCheckboxes = document.querySelectorAll('.history-checkbox:checked');
-                deleteSelectedBtn.disabled = checkedCheckboxes.length === 0;
-            }
-
-            // Event listener for "Select All" checkbox
-            if (selectAllCheckbox) {
-                selectAllCheckbox.addEventListener('change', function() {
-                    historyCheckboxes.forEach(checkbox => {
-                        checkbox.checked = selectAllCheckbox.checked;
-                    });
-                    updateDeleteButtonState();
-                });
-            }
-
-            // Event listeners for individual history checkboxes
-            historyCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    if (!this.checked) {
-                        if (selectAllCheckbox) {
-                            selectAllCheckbox.checked = false;
-                        }
-                    } else {
-                        // Optional: Check if all are selected to check "Select All"
-                        const allChecked = Array.from(historyCheckboxes).every(cb => cb.checked);
-                        if (selectAllCheckbox) {
-                            selectAllCheckbox.checked = allChecked;
-                        }
-                    }
-                    updateDeleteButtonState();
-                });
-            });
-
-            // Initial state of the delete button
-            updateDeleteButtonState();
-
-            // Add event listener for the deleteSelectedBtn to send the delete request
-            if (deleteSelectedBtn) {
-                deleteSelectedBtn.addEventListener('click', function() {
-                    const checkedCheckboxes = document.querySelectorAll('.history-checkbox:checked');
-                    const historyIdsToDelete = Array.from(checkedCheckboxes).map(checkbox => checkbox.value);
-
-                    if (historyIdsToDelete.length > 0) {
-                        // Optional: Add a confirmation dialog here if desired
-                        if (confirm('Are you sure you want to delete the selected history entries?')) {
-                            fetch('/delete_selected_history', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({ history_ids: historyIdsToDelete }),
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    alert('Selected history entries deleted successfully.');
-                                    // Reload the page to show updated history
-                                    window.location.reload();
-                                } else {
-                                    alert('Error deleting selected history entries: ' + data.message);
-                                }
-                            })
-                            .catch((error) => {
-                                console.error('Error:', error);
-                                alert('An error occurred while trying to delete selected history entries.');
-                            });
-                        }
-                    } else {
-                        alert('Please select at least one history entry to delete.');
-                    }
-                });
-            }
+            document.body.classList.add('history-page');
         });
     </script>
-</body>
-</html>
+{% endblock %}
+
+{% block content %}
+<div class="history-card">
+    <div class="history-header">
+        <h2>{{ t('history_title', lang) }}</h2>
+        {% if history %}
+            <button type="button" class="btn btn-delete" id="deleteSelectedBtn" disabled>{{ t('delete_selected', lang) }}</button>
+        {% endif %}
+    </div>
+
+    {% if history %}
+        <table>
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="selectAllCheckbox"></th>
+                    <th>{{ t('timestamp', lang) }}</th>
+                    <th>{{ t('chat', lang) }}</th>
+                    <th>{{ t('period', lang) }}</th>
+                    <th>{{ t('messages_found', lang) }}</th>
+                    <th>{{ t('messages_scanned', lang) }}</th>
+                    <th>{{ t('actions', lang) }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in history %}
+                    <tr>
+                        <td><input type="checkbox" class="history-checkbox" value="{{ entry['id'] }}"></td>
+                        <td data-label="{{ t('timestamp', lang) }}">{{ entry['timestamp'] }}</td>
+                        <td data-label="{{ t('chat', lang) }}">{{ entry['chat_title'] or entry['chat_identifier'] }}</td>
+                        <td data-label="{{ t('period', lang) }}">{{ entry['period_days'] if entry['period_days'] is not none else t('period_all', lang) }}</td>
+                        <td data-label="{{ t('messages_found', lang) }}">{{ entry['messages_found'] }}</td>
+                        <td data-label="{{ t('messages_scanned', lang) }}">{{ entry['scanned_count'] }}</td>
+                        <td data-label="{{ t('actions', lang) }}">
+                            <div class="action-buttons">
+                                <a href="{{ url_for('view_history_results', history_id=entry['id']) }}" class="btn">{{ t('view_results', lang) }}</a>
+                                {# Individual delete button can be added here if needed, using confirmDelete(entry['id']) #}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    {% else %}
+        <div class="no-history">
+            <p>{{ t('no_history', lang) }}</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Silme onay modalı -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <h3>{{ t('confirm_delete', lang) }}</h3>
+        <div class="modal-buttons">
+            <form id="deleteForm" method="post" action="">
+                <button type="submit" class="btn">{{ t('yes', lang) }}</button>
+            </form>
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">{{ t('no', lang) }}</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+    <script src="{{ url_for('static', filename='js/history.js') }}"></script>
+{% endblock %}

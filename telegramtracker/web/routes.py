@@ -7,17 +7,70 @@ from telegramtracker.core import database
 from telegramtracker.services.telegram_client import run_fetch_in_background, API_ID, API_HASH, build_message_link
 from telegramtracker.utils.translations import get_text, LANGUAGES
 
-# Global variable to store application state
-# This is sufficient for a single-user application, should be reconsidered for a more scalable solution
-task_data = {
-    'progress_queue': queue.Queue(),
-    'results': None,
-    'error': None,
-    'entity': None,
-    'is_running': False,
-    'original_identifier': None,
-    'original_period': None
-}
+# Task Management
+class TaskManager:
+    def __init__(self):
+        self.progress_queue = queue.Queue()
+        self.results = None
+        self.error = None
+        self.entity = None  # Telegram entity object
+        self.is_running = False
+        self.original_identifier = None # Raw input from user for history
+        self.original_period = None     # Numeric period for history
+        self.scanned_count = 0          # Total messages scanned in the task
+        self.download_folder_path = None # Path to folder where media is saved
+
+    def start_new_task(self, identifier_to_process, raw_identifier_for_history, period_for_history, reaction_filter_enabled, download_limit_count):
+        """Initializes state for a new background task and starts it."""
+        if self.is_running:
+            print("Warning: Attempted to start a new task while another is already running.")
+            return False
+
+        # Reset all task-specific fields
+        self.progress_queue = queue.Queue()
+        self.results = None
+        self.error = None
+        self.entity = None
+        self.is_running = True
+        self.original_identifier = raw_identifier_for_history
+        self.original_period = period_for_history
+        self.scanned_count = 0
+        self.download_folder_path = None
+
+        # The run_fetch_in_background function will need to be adapted
+        # to accept this TaskManager instance and update its attributes.
+        # For now, we pass 'self' (the task_manager instance) instead of task_data dict.
+        thread = threading.Thread(
+            target=run_fetch_in_background,
+            args=(identifier_to_process, self, period_for_history, reaction_filter_enabled, download_limit_count)
+            # Original args: (processed_identifier, task_data['progress_queue'], task_data, period, reaction_filter, download_limit)
+        )
+        thread.daemon = True
+        thread.start()
+        return True
+
+    def set_task_error(self, error_message):
+        """Sets error information for the current task and marks it as not running."""
+        self.error = error_message
+        self.is_running = False
+        # Ensure the queue is signaled if the background task errored out early
+        # Use a dictionary format consistent with other queue messages
+        self.progress_queue.put({'type': 'error', 'message': error_message})
+
+
+    def clear_task_data_after_processing(self):
+        """Resets fields that should not persist after results are viewed/saved or an error is handled."""
+        self.results = None
+        self.error = None
+        self.entity = None
+        self.original_identifier = None
+        self.original_period = None
+        self.scanned_count = 0
+        self.download_folder_path = None
+        # self.is_running should already be False at this point.
+
+# Global instance of the TaskManager
+task_manager = TaskManager()
 
 def register_routes(app):
     # Store language selection in session
@@ -57,9 +110,9 @@ def register_routes(app):
     @app.route('/fetch', methods=['POST'])
     def fetch():
         """Starts a process to fetch Telegram data."""
-        global task_data
+        # No longer need 'global task_data'
         
-        if task_data['is_running']:
+        if task_manager.is_running: # Use task_manager instance
             # If a task is already running, redirect directly to loading page
             return redirect(url_for('loading'))
 
@@ -101,17 +154,17 @@ def register_routes(app):
         mapping = {'7': 7, '30': 30, '90': 90, '180': 180, 'all': None, '1': 1}
         period = mapping.get(period_choice)
 
-        # Store original inputs for database saving
-        task_data['original_identifier'] = chat_input  # Store raw input
-        task_data['original_period'] = period  # Store numeric period
+        # Process period for history saving (it's the same as 'period' used for fetching)
 
-        # Start fetch process in background
-        thread = threading.Thread(
-            target=run_fetch_in_background,
-            args=(processed_identifier, task_data['progress_queue'], task_data, period, reaction_filter, download_limit)
-        )
-        thread.daemon = True  # Allow app exit even if thread is running
-        thread.start()
+        # Attempt to start the new task using the TaskManager instance
+        # The args passed to start_new_task now include all necessary info.
+        # The run_fetch_in_background function (called within start_new_task)
+        # will need to be updated separately to accept the task_manager instance.
+        if not task_manager.start_new_task(processed_identifier, chat_input, period, reaction_filter, download_limit):
+            # This case (task already running) is handled by the check at the beginning.
+            # If start_new_task had other failure modes, they could be handled here.
+            flash(get_text('task_already_running_error', session.get('lang', 'tr')), 'error') # Example error
+            return redirect(url_for('index'))
 
         return redirect(url_for('loading'))
 
@@ -130,47 +183,53 @@ def register_routes(app):
     def stream_progress():
         """Server-Sent Events endpoint for progress updates."""
         def generate():
-            global task_data
-            q = task_data['progress_queue']
-            last_scanned = 0
-            
-            while task_data['is_running'] or not q.empty():
+            # No longer need 'global task_data'
+            q = task_manager.progress_queue # Use queue from task_manager
+            last_scanned_count_for_stream = 0 # Keep track of the last count sent
+
+            # Loop while the task is running OR there are still items in the queue
+            while task_manager.is_running or not q.empty():
                 try:
-                    update = q.get(timeout=1)  # Wait at most 1 second
-                    
+                    update = q.get(timeout=1)  # Wait for an update
+
                     if update['type'] == 'progress':
-                        last_scanned = update['scanned']
-                        yield f"data: {{\"type\": \"progress\", \"scanned\": {last_scanned}}}\n\n"
+                        last_scanned_count_for_stream = update['scanned']
+                        yield f"data: {{\"type\": \"progress\", \"scanned\": {last_scanned_count_for_stream}}}\n\n"
                     elif update['type'] == 'media_phase':
-                        # Forward media phase message to frontend
                         yield f"data: {{\"type\": \"media_phase\", \"total_media\": {update['total_media']}}}\n\n"
                     elif update['type'] == 'media_progress':
-                        # Forward media progress message to frontend
                         yield f"data: {{\"type\": \"media_progress\", \"processed_count\": {update['processed_count']}, \"total_media\": {update['total_media']}}}\n\n"
                     elif update['type'] == 'error':
+                        # Error message put in queue by background task or set_task_error
                         yield f"data: {{\"type\": \"error\", \"message\": \"{update['message']}\"}}\n\n"
-                        break
+                        # No need to break here, let the loop condition (is_running) handle termination
                     elif update['type'] == 'complete':
-                        yield f"data: {{\"type\": \"complete\", \"scanned\": {last_scanned}}}\n\n"
-                        
-                    q.task_done()
-                except queue.Empty:
-                    # No update on timeout, keep alive to keep connection open
-                    yield f": keepalive\n\n"
-                except Exception as e:
-                    # Log error during streaming
-                    print(f"Error in SSE stream: {e}")
-                    yield f"data: {{\"type\": \"error\", \"message\": \"{task_data['error']}\"}}\n\n"
-                    break
+                        # Task completion message put in queue by background task
+                        # Use the scanned count from the message if available, otherwise use the last known
+                        final_scanned_count = update.get('scanned', last_scanned_count_for_stream)
+                        yield f"data: {{\"type\": \"complete\", \"scanned\": {final_scanned_count}}}\n\n"
+                        # No need to break here, let the loop condition handle termination
 
-            # Final check after loop exit (task completed)
-            if task_data['error']:
-                yield f"data: {{\"type\": \"error\", \"message\": \"{task_data['error']}\"}}\n\n"
-            elif task_data['results'] is not None:
-                # Notify completion
-                if 'update' not in locals() or update.get('type') != 'complete':
-                    yield f"data: {{\"type\": \"complete\", \"scanned\": {last_scanned}}}\n\n"
-            
+                    q.task_done() # Mark task as done in the queue
+
+                except queue.Empty:
+                    # No update received within the timeout.
+                    # Send a keepalive comment to prevent the connection from closing.
+                    yield ": keepalive\n\n"
+                except Exception as e:
+                    # Handle unexpected errors during streaming
+                    print(f"Error in SSE stream processing queue item: {e}")
+                    # Send a generic error to the client
+                    yield f"data: {{\"type\": \"error\", \"message\": \"An internal error occurred during streaming.\"}}\n\n"
+                    # Consider breaking or letting the loop condition handle it based on task_manager.is_running
+                    # If the error is critical, ensure task_manager.is_running is set to False elsewhere.
+
+            # After the loop finishes (task is no longer running AND queue is empty)
+            # Perform final checks if needed, although most states should be handled within the loop.
+            # For example, if an error occurred and was set directly on task_manager without going through the queue:
+            if task_manager.error and update.get('type') != 'error': # Avoid sending duplicate error
+                 yield f"data: {{\"type\": \"error\", \"message\": \"{task_manager.error}\"}}\n\n"
+
             print("SSE stream closing.")
 
         return Response(generate(), mimetype='text/event-stream')
@@ -178,116 +237,118 @@ def register_routes(app):
     @app.route('/results')
     def results():
         """Shows paginated results."""
-        global task_data
+        # No longer need 'global task_data'
         lang = session.get('lang', 'tr')
         
-        if task_data['error']:
-            # Show error message
+        if task_manager.error:
+            error_message = task_manager.error
+            # Important: Clear task data AFTER retrieving the error message
+            # and before rendering, so the error isn't shown again on refresh.
+            task_manager.clear_task_data_after_processing()
             return render_template(
                 'results.html',
-                error=task_data['error'],
+                error=error_message, # Pass the retrieved error message
                 lang=lang,
                 t=get_text,
                 languages=LANGUAGES
             )
 
-        if task_data['results'] is None:
-            # Task is still running or failed silently
-            if task_data['is_running']:
+        if task_manager.results is None:
+            if task_manager.is_running:
                 return redirect(url_for('loading'))
             else:
-                # Not running and no result/error, something went wrong
+                # Not running and no results/error, implies an issue or direct access without task
+                # Consider flashing a message or just redirecting
+                # Clearing data here might be premature if it's a direct access attempt
+                # but if it's an unexpected state, clearing might be safer.
+                # For now, let's assume it's an invalid state and clear.
+                task_manager.clear_task_data_after_processing()
                 return redirect(url_for('index'))
 
         # Paginate results
         page = request.args.get('page', 1, type=int)
-        per_page = 10
-        max_pages = 10  # Limit to 10 pages as requested
+        per_page = 10  # Items per page
+        max_pages = 10 # Max number of pages to show in pagination
 
-        all_results = task_data['results']
-        total_items = len(all_results)
-        start_index = (page - 1) * per_page
-        end_index = start_index + per_page
-
-        # Ensure we don't exceed total items or 10 page limit
-        if start_index >= total_items or page > max_pages:
-            # Handle invalid page number - show page 1 or error?
-            # For simplicity, let's redirect to page 1
-            if page != 1:
-                return redirect(url_for('results', page=1))
-            else:  # Page 1 is requested but no results (shouldn't happen)
-                paginated_results = []
-        else:
-            paginated_results = [dict(row) for row in all_results[start_index:end_index]] # Convert to dicts for modification
-
-        # Add links to results
-        entity_info = task_data['entity']
+        all_task_results = task_manager.results # Use results from task_manager
+        total_items = len(all_task_results)
         
-        # Calculate pagination info
-        page = request.args.get('page', 1, type=int)
-        per_page = 10
-        max_pages = 10  # Limit to 10 pages as requested
+        # Calculate total pages, respecting max_pages limit for display
+        actual_total_pages = (total_items + per_page - 1) // per_page
+        display_total_pages = min(max_pages, actual_total_pages)
 
-        all_results = task_data['results']
-        total_items = len(all_results)
+
+        # Ensure current page is within valid range
+        if page < 1:
+            page = 1
+        elif page > display_total_pages and display_total_pages > 0 : # if display_total_pages is 0, page 1 is fine
+             return redirect(url_for('results', page=display_total_pages))
+        elif page > 1 and total_items == 0: # No items, but requested page > 1
+             return redirect(url_for('results', page=1))
+
+
         start_index = (page - 1) * per_page
         end_index = start_index + per_page
+        
+        # Slice results for the current page
+        # Ensure results are dicts if they need modification (e.g. adding links directly)
+        # If results are already in the desired format (e.g. from database.py), direct slicing is fine.
+        # The original code converted to dicts: paginated_results = [dict(row) for row in all_task_results[start_index:end_index]]
+        # Assuming all_task_results are already list of dicts or similar.
+        paginated_results = all_task_results[start_index:end_index]
 
-        # Ensure we don't exceed total items or 10 page limit
-        if start_index >= total_items or page > max_pages:
-            # Handle invalid page number - show page 1 or error?
-            # For simplicity, let's redirect to page 1
-            if page != 1:
-                return redirect(url_for('results', page=1))
-            else:  # Page 1 is requested but no results (shouldn't happen)
-                paginated_results = []
-        else:
-            paginated_results = all_results[start_index:end_index] # paginated_results already contains media_paths
 
         # Save to history if this is the first view of results (page 1)
+        # and the task has original identifier (meaning it was a new search)
         history_id = None
-        if page == 1 and task_data.get('original_identifier') and not request.args.get('no_save'):
-            # Save search metadata
+        if page == 1 and task_manager.original_identifier and not request.args.get('no_save'):
             try:
                 history_id = database.save_search_history(
-                    task_data['original_identifier'],
-                    task_data['entity'],
-                    task_data['original_period'],
-                    len(all_results),
-                    task_data.get('scanned_count', 0),
-                    task_data.get('download_folder_path') # Pass the download folder path
+                    task_manager.original_identifier,
+                    task_manager.entity, # Entity object from task_manager
+                    task_manager.original_period,
+                    len(all_task_results), # Total results from this task
+                    task_manager.scanned_count, # Scanned count from task_manager
+                    task_manager.download_folder_path # download_folder_path from task_manager
                 )
 
-                # Save individual results
                 if history_id:
-                    # Create a function to build links for each message
-                    def build_link(msg_id):
-                        return build_message_link(task_data['entity'], msg_id) # Use entity from task_data
-
-                    # Pass the results which now include media_paths
-                    database.save_search_results(history_id, all_results, build_link)
+                    # The build_link function now uses the entity from task_manager
+                    def build_link_for_history(msg_id):
+                        return build_message_link(task_manager.entity, msg_id)
+                    
+                    database.save_search_results(history_id, all_task_results, build_link_for_history)
             except Exception as e:
                 print(f"Error saving to history: {e}")
-                # Continue showing results even if saving fails
-        
-        # Reset task_data after history saving (if it happened)
-        task_data['results'] = None
-        task_data['entity'] = None
-        task_data['original_identifier'] = None
-        task_data['original_period'] = None
-        task_data['download_folder_path'] = None
+                # Optionally flash a message to the user about history saving failure
+                flash(get_text('history_save_error', lang), 'warning')
 
+
+        # Data for the current task has been processed (either displayed or saved to history).
+        # Clear it now, but only if it was a new search that just completed.
+        # If we are just browsing pages of an already completed task (e.g. via direct URL with page > 1),
+        # we should not clear it, as it might be needed if the user navigates back to page 1.
+        # However, the current logic re-fetches task_data for each page, so this might be complex.
+        # A safer approach: clear if page == 1 and history_id was processed (or attempted).
+        if page == 1 and task_manager.original_identifier:
+            task_manager.clear_task_data_after_processing()
+
+
+        # Function to build links for the current view (might be different from history saving if entity changes)
+        current_task_entity_for_links = task_manager.entity # Or re-fetch if necessary for paged views
+        
         return render_template(
             'results.html',
-            results=paginated_results, # Pass results with media_paths
-            lang=session.get('lang', 'tr'),
+            results=paginated_results,
+            lang=lang,
             t=get_text,
             languages=LANGUAGES,
-            build_link=lambda msg_id: build_message_link(task_data.get('entity'), msg_id), # Use entity from task_data if available
+            # Pass entity for link building; ensure it's available if task_manager was cleared
+            build_link=lambda msg_id: build_message_link(current_task_entity_for_links, msg_id),
             page=page,
-            total_pages=min(max_pages, (total_items + per_page - 1) // per_page), # Recalculate total_pages
-            total_items=total_items,
-            history_id=history_id
+            total_pages=display_total_pages,
+            total_messages=total_items, # Renamed from total_items for clarity in template
+            history_id=history_id # Pass history_id if created
         )
 
     @app.route('/history')
