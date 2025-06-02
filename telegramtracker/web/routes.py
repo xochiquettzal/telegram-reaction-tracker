@@ -4,7 +4,8 @@ import os
 from flask import render_template, request, redirect, url_for, Response, jsonify, session, flash, make_response, send_from_directory
 
 from telegramtracker.core import database
-from telegramtracker.services.telegram_client import run_fetch_in_background, API_ID, API_HASH, build_message_link
+import asyncio
+from telegramtracker.services.telegram_client import run_fetch_in_background, API_ID, API_HASH, build_message_link, get_user_chats_async
 from telegramtracker.utils.translations import get_text, LANGUAGES
 
 # Task Management
@@ -429,6 +430,19 @@ def register_routes(app):
             flash('Failed to delete history entry.', 'error')
             
         return redirect(url_for('history'))
+
+    @app.route('/get_chats')
+    def get_chats():
+        """Returns a JSON list of user's Telegram chats."""
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            chats = loop.run_until_complete(get_user_chats_async())
+            loop.close()
+            return jsonify(chats)
+        except Exception as e:
+            print(f"Error in /get_chats route: {e}")
+            return jsonify({'error': str(e)}), 500
 
     @app.route('/delete_selected_history', methods=['POST'])
     def delete_selected_history():

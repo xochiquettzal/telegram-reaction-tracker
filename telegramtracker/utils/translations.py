@@ -78,6 +78,14 @@ translations = {
         'tr': 'Tepkileri Getir',
         'en': 'Fetch Reactions'
     },
+    'loading_chats': {
+        'tr': 'Sohbetler yükleniyor...',
+        'en': 'Loading chats...'
+    },
+    'select_chat_placeholder': {
+        'tr': 'Bir sohbet seçin',
+        'en': 'Select a chat'
+    },
     'chat_id_required_error': {
         'tr': 'Sohbet Kullanıcı Adı veya ID alanı zorunludur.',
         'en': 'Chat Username or ID field is required.'

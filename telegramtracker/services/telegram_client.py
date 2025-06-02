@@ -504,3 +504,37 @@ def run_fetch_in_background(chat_identifier, task_manager, period_days=None, rea
              pass
 
         print("Background task wrapper function ended.")
+
+async def get_user_chats_async():
+    """Asynchronous function to fetch all user chats (groups, channels, private chats)."""
+    client = None
+    chats_list = []
+    try:
+        client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
+        print("Connecting to Telegram for chat list...")
+        await client.connect()
+
+        if not await client.is_user_authorized():
+            print("User not authorized. Please run a script to login first.")
+            return []
+
+        print("Fetching dialogs...")
+        async for dialog in client.iter_dialogs():
+            # Filter out private chats if only groups/channels are desired, or include all
+            # For now, let's include all dialogs that have a title (i.e., not self-chat)
+            if dialog.title:
+                chat_info = {
+                    'id': dialog.entity.id,
+                    'title': dialog.title,
+                    'username': getattr(dialog.entity, 'username', None),
+                    'is_group_or_channel': dialog.is_group or dialog.is_channel
+                }
+                chats_list.append(chat_info)
+        print(f"Found {len(chats_list)} chats.")
+    except Exception as e:
+        print(f"Error fetching user chats: {e}")
+    finally:
+        if client and client.is_connected():
+            print("Disconnecting client after chat list fetch...")
+            await client.disconnect()
+    return chats_list

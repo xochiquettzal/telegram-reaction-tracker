@@ -9,15 +9,6 @@ def init_db():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
     
-    # Check if the download_folder_path column exists
-    cursor.execute("PRAGMA table_info(search_history)")
-    columns = [col[1] for col in cursor.fetchall()]
-    
-    if 'download_folder_path' not in columns:
-        print("Adding download_folder_path column to search_history table.")
-        cursor.execute("ALTER TABLE search_history ADD COLUMN download_folder_path TEXT")
-        conn.commit()
-
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS search_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -5,9 +5,49 @@ function changeLanguage(lang) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    const chatSelect = document.getElementById('chat_id');
     const downloadLimitInput = document.getElementById('download_limit');
     const reactionFilterCheckbox = document.getElementById('reaction_filter');
     const searchForm = document.querySelector('.input-form');
+
+    // Function to fetch chats and populate the dropdown
+    async function fetchAndPopulateChats() {
+        const loadingText = chatSelect.dataset.loadingText;
+        const selectChatText = chatSelect.dataset.selectChatText;
+
+        chatSelect.innerHTML = `<option value="">${loadingText}</option>`;
+        chatSelect.disabled = true; // Disable while loading
+
+        try {
+            const response = await fetch('/get_chats');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const chats = await response.json();
+
+            chatSelect.innerHTML = ''; // Clear loading option
+            chatSelect.add(new Option(selectChatText, '')); // Add default "Select a chat" option
+
+            // Sort chats alphabetically by title
+            chats.sort((a, b) => a.title.localeCompare(b.title));
+
+            chats.forEach(chat => {
+                // Prioritize username if available, otherwise use ID
+                const value = chat.username ? chat.username : chat.id;
+                const option = new Option(chat.title, value);
+                chatSelect.add(option);
+            });
+        } catch (error) {
+            console.error('Error fetching chats:', error);
+            chatSelect.innerHTML = `<option value="">Error loading chats</option>`; // Display error message
+            // Optionally, re-enable the input or provide a retry mechanism
+        } finally {
+            chatSelect.disabled = false; // Re-enable after loading (or error)
+        }
+    }
+
+    // Call the function to fetch and populate chats
+    fetchAndPopulateChats();
 
     // Function to update the disabled state of the download limit input
     function updateDownloadLimitState() {
